@@ -8,3 +8,13 @@ TODO:
 - Extend this readme
 - Figures?
 
+## Prerequisites 
+Graph extraction requires the installation of [pi2/itl2](https://github.com/arttumiettinen/pi2). After installation, please change the config file to the corresponding pi2 location.
+### Requirements
+Please install the requirements.txt
+## Installation
+
+## Usage
+
+## FAQ
+
