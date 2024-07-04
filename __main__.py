@@ -18,8 +18,8 @@ if __name__ == "__main__":
 
     config = {}
 
-    with open(path_config, "r") as file:
-        config = json.loads(file)
+    with open(path_config, "rb") as file:
+        config = json.load(file)
 
     flags = config["FLAGS"]
 

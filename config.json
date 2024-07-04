@@ -34,7 +34,7 @@
             "prune_skeleton":true,
             "remove_small_nodes":true
         }
-    }
+    },
     "FLAGS":{
         "perform_organ_segmentation":true,
         "perform_tissue_segmentation":true,
