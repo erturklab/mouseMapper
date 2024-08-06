@@ -31,6 +31,7 @@ def read_nifti(path):
     return volume
 
 def from_npy(array):
+    print(f"dtype {array.dtype}")
     img = pi.newimage(array.dtype, array.shape[0], array.shape[1], array.shape[2])
     img.set_data(array)
     return img
@@ -44,11 +45,19 @@ def graph_extraction(config):
     """
     pi2location = config["graph_extraction"]["parameters"]["path_pi2"]
     sys.path.append(pi2location)
-    from pi2py2 import *
+
+    lib = __import__('pi2py2')
+    globals().update({k: getattr(lib, k) for k in dir(lib) if not k.startswith('_')})
+
+    # from pi2py2 import *
+    global pi 
     pi = Pi2()
 
     path_in = config["graph_extraction"]["path_nerve_mask"]
     path_out = config["graph_extraction"]["path_out"]
+
+    if not os.path.exists(path_out):
+        os.mkdir(path_out)
     
     for mouse in os.listdir(path_in):
         skeletonize_measurements(os.path.join(path_in, mouse), os.path.join(path_out, mouse), mouse, config)
@@ -74,11 +83,21 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
     else:
         # Read input data
         print("Reading TIFF stack...")
-        path_in = Path(path_in, "*.tif*")
-        with ProgressBar():
-            binary = imread(str(path_in))
+        paths_in = Path(path_in, "*.tif*")
+        if len(os.listdir(path_in)) > 0:
+            with ProgressBar():
+                binary = imread(str(paths_in))
+        else:
+            print(f"Path {path_in} empty, skipping...")
+            return
+    print("Read image, converting to uint8...")
     binary = binary.astype(np.uint8)
+    print("Computing..")
+    with ProgressBar():
+        binary = binary.compute()
+    print("Converted, converting to pi2 image...")
     img = from_npy(binary)
+    print("Converted to pi2 image")
 
     # Skeletonize
     print("Generating skeleton...")
@@ -116,7 +135,8 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
 
     if config["graph_extraction"]["parameters"]["prune_skeleton"]:
         # Graph pruning 
-        pi.pruneskeleton(vertices, edges, measurements, points, 40, False, True)
+        pruning_threshold = config["graph_extraction"]["parameters"]["pruning_threshold"]
+        pi.pruneskeleton(vertices, edges, measurements, points, pruning_threshold, False, True)
 
     # Convert to vtk format in order to get radius for each point and line
     print("Generating vtk image...")
