@@ -39,6 +39,40 @@ def from_npy(array):
 def to_npy(img):
     return(img.get_data())
 
+def load_binary(path_in):
+    """
+    Reading image depending on input type (NIFTI/TIFF stack)
+    Args:
+        path_in (str) : Input path
+    """
+    print("Reading image...")
+    if ".nii.gz" in path_in:
+        print("Reading nifti image...")
+        binary = read_nifti(path_in)
+    else:
+        # Read input data
+        print("Reading TIFF stack...")
+        paths_in = Path(path_in, "*.tif*")
+        if len(os.listdir(path_in)) > 0:
+            with ProgressBar():
+                binary = imread(str(paths_in))
+        else:
+            print(f"Path {path_in} empty, skipping...")
+            return
+    print("Read image, converting to uint8...")
+    binary = binary.astype(np.uint8)
+    print("Computing..")
+    with ProgressBar():
+        binary = binary.compute()
+    print("Converted, converting to pi2 image...")
+    return binary
+
+def fuse_measurements():
+    """
+    Fuse measurements of cut volumes together into one volume
+    """
+    pass
+
 def graph_extraction(config):
     """
     Generate graphs of binary nerve segmentations and analyzes them afterwards
@@ -60,42 +94,31 @@ def graph_extraction(config):
         os.mkdir(path_out)
     
     for mouse in os.listdir(path_in):
-        skeletonize_measurements(os.path.join(path_in, mouse), os.path.join(path_out, mouse), mouse, config)
+        binary = load_binary(os.path.join(path_in, mouse))
+        if config["graph_extraction"]["parameters"]["cut_volume"]:
+            binary = binary.rechunk({0: 100, 1: 100, 2: 100})     
+            block_shape = binary.blocks.shape
+            for x in block_shape[0]:
+                for y in block_shape[1]:
+                    for z in block_shape[2]:
+                        print(f"Skeletonizing x {x}/{block_shape[0]} y {y}/{block_shape[1]} z {z}/{block_shape[2]}")
+                        skeletonize_measurements(binary.blocks[x, y, z], os.path.join(path_out, mouse), f"{mouse}_{x}_{y}_{z}", config)
+        else:
+            skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
 
     analyze_measurements(path_out, path_out)
 
-def skeletonize_measurements(path_in, path_out, output_name, config):
+def skeletonize_measurements(binary, path_out, output_name, config):
     """
     Skeletonize a binary volumetric mask, postprocess the graph and save a distance-map enhanced graph.
     This script is based on the pi2 example given at https://pi2-docs.readthedocs.io/en/latest/examples/ex_vessel_graph.html#vessel-graph-example
     Args:
-        path_in (str): Path of the input volumetric image, folder of TIFF images
+        binary (np.array): binary segmentation array
         path_out (str): Path of the output folder, will be created if not existing. Raw skeleton, measurements csv and vtk file is saved there
     """
     if not os.path.exists(path_out):
         os.mkdir(path_out)
 
-
-    print("Reading image...")
-    if ".nii.gz" in path_in:
-        print("Reading nifti image...")
-        binary = read_nifti(path_in)
-    else:
-        # Read input data
-        print("Reading TIFF stack...")
-        paths_in = Path(path_in, "*.tif*")
-        if len(os.listdir(path_in)) > 0:
-            with ProgressBar():
-                binary = imread(str(paths_in))
-        else:
-            print(f"Path {path_in} empty, skipping...")
-            return
-    print("Read image, converting to uint8...")
-    binary = binary.astype(np.uint8)
-    print("Computing..")
-    with ProgressBar():
-        binary = binary.compute()
-    print("Converted, converting to pi2 image...")
     img = from_npy(binary)
     print("Converted to pi2 image")
 
