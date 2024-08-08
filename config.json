@@ -25,22 +25,24 @@
         }
     },
     "graph_extraction":{
-        "path_nerve_mask":"",
+        "path_nerve_mask":"/media/rami/iTERM HDD 41 Rami/Projects/UCHL1 HFD/Whole Body/full_resolution/segmentations/",
         "path_organ_mask":"",
         "path_tissue_mask":"",
-        "path_out":"",
+        "path_out":"/media/rami/iTERM HDD 41 Rami/Projects/UCHL1 HFD/Whole Body/full_resolution/graphs_2/",
         "parameters":{
-            "path_pi2":"",
-            "cut_volume":false,
-            "prune_skeleton":true,
-            "remove_small_nodes":true
+            "path_pi2":"/home/rami/Documents/pi2/bin-linux64/release-nocl/",
+            "prune_skeleton":false,
+            "cut_volume":true,
+            "pruning_threshold":0,
+            "remove_small_nodes":true,
+            "multiprocessing":true
         }
-    }
+    },
     "FLAGS":{
-        "perform_organ_segmentation":true,
-        "perform_tissue_segmentation":true,
-        "perform_inflammation_segmentation":true,
-        "perform_nerve_segmentation":true,
+        "perform_organ_segmentation":false,
+        "perform_tissue_segmentation":false,
+        "perform_inflammation_segmentation":false,
+        "perform_nerve_segmentation":false,
         "perform_graph_extraction":true
     }
 }

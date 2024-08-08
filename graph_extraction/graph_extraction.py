@@ -60,11 +60,7 @@ def load_binary(path_in):
             print(f"Path {path_in} empty, skipping...")
             return
     print("Read image, converting to uint8...")
-    binary = binary.astype(np.uint8)
-    print("Computing..")
-    with ProgressBar():
-        binary = binary.compute()
-    print("Converted, converting to pi2 image...")
+    # binary = binary.astype(np.uint8)
     return binary
 
 def fuse_measurements():
@@ -96,13 +92,22 @@ def graph_extraction(config):
     for mouse in os.listdir(path_in):
         binary = load_binary(os.path.join(path_in, mouse))
         if config["graph_extraction"]["parameters"]["cut_volume"]:
-            binary = binary.rechunk({0: 100, 1: 100, 2: 100})     
-            block_shape = binary.blocks.shape
-            for x in block_shape[0]:
-                for y in block_shape[1]:
-                    for z in block_shape[2]:
-                        print(f"Skeletonizing x {x}/{block_shape[0]} y {y}/{block_shape[1]} z {z}/{block_shape[2]}")
-                        skeletonize_measurements(binary.blocks[x, y, z], os.path.join(path_out, mouse), f"{mouse}_{x}_{y}_{z}", config)
+            binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})     
+            blocks_shape = binary.blocks.shape
+            block_shape = "not initialized"
+            for z in range(blocks_shape[0]):
+                for y in range(blocks_shape[1]):
+                    for x in range(blocks_shape[2]):
+                        print(f"Skeletonizing z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
+                        print("Computing..")
+                        with ProgressBar():
+                            block = binary.blocks[z, y, x].compute()
+                            block_shape = block.shape
+                        if da.max(block) > 0:
+                            print(f"Computed, block has shape {block.shape}, starting pipeline...")
+                            skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}", config)
+                        else:
+                            print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
         else:
             skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
 
@@ -119,6 +124,9 @@ def skeletonize_measurements(binary, path_out, output_name, config):
     if not os.path.exists(path_out):
         os.mkdir(path_out)
 
+    print("Sanity checks")
+    print(f"Shape {binary.shape}")
+    print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
     img = from_npy(binary)
     print("Converted to pi2 image")
 
@@ -169,6 +177,7 @@ def skeletonize_measurements(binary, path_out, output_name, config):
     
     # Get radius for each point
     points_data = to_npy(vtkpoints)
+    print(f"points_data shape {points_data.shape}")
     radius_points = np.zeros([points_data.shape[0]])
     for i in range(0, points_data.shape[0]):
         p = points_data[i, :]
