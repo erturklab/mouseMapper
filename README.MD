@@ -1,4 +1,4 @@
-# P-EARTH: Obesity-induced changes in peripheral nerves and immune cell dynamics on the whole body scale
+# MouseMapper: Obesity-induced changes in peripheral nerves and immune cell dynamics on the whole body scale
 TODO: 
 - Get requirements into requirements.txt
 - Check your config part for additional parameters
