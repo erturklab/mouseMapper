@@ -9,3 +9,4 @@ dill==0.3.5.1
 monai==0.9.1
 nibabel==3.1.1
 opencv-python==4.5.5.64
+connected-components-3d==3.6.0
