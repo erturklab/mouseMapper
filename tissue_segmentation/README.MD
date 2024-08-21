@@ -14,24 +14,17 @@
 	```
 * Install [pytorch](https://pytorch.org/get-started/locally/).
 Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the instructions on their repository.
-* Install additional required libraries:
-    opencv-python==4.5.5.64
-    pylibtiff==0.5.1
-    connected-components-3d==3.10.5 
-    nibabel==3.2.2
 * Create folders `nnUNet_raw`, `nnUNet_preprocessed`, and `nnUNet_results`.
    
   
-## Organ segmentation
-* Download trained model zip from [here](TODO), and select model 6802 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
-* Run organ downsampling. You can find the necessary code and an exampl in [Organ_Segmentation.ipynp](./Organ_Segmentation.ipynb)
+## Tissue segmentation
+* Download trained model zip from [here](TODO), and select model 310 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
+* Crop your tissue data with your solution of choice. The smaller the crops, the faster each patch will be segmented, and the less resources (RAM and CPU) you can get away with.
 * Run organ segmentation inference for a whole-body scan:
   ```
-  nnUNetv2_predict -d 68802 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
+  nnUNetv2_predict -d 310 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
 	```  
-* Postprocess the predictions
-* Upsample the resulting masks
-* Optional : create masked non-organ slices for the downstream tissue segmentation
+* Merge the resulting patches back to the original resoltion
 
-![Example](./assets/organ_map_1.png)
+![Example](./assets/mouse_map.png)
   
