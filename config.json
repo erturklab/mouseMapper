@@ -31,15 +31,18 @@
         "path_out":"",
         "parameters":{
             "path_pi2":"",
-            "prune_skeleton":true,
-            "remove_small_nodes":true
+            "prune_skeleton":false,
+            "cut_volume":true,
+            "pruning_threshold":0,
+            "remove_small_nodes":true,
+            "multiprocessing":true
         }
     },
     "FLAGS":{
-        "perform_organ_segmentation":true,
-        "perform_tissue_segmentation":true,
-        "perform_inflammation_segmentation":true,
-        "perform_nerve_segmentation":true,
+        "perform_organ_segmentation":false,
+        "perform_tissue_segmentation":false,
+        "perform_inflammation_segmentation":false,
+        "perform_nerve_segmentation":false,
         "perform_graph_extraction":true
     }
 }

@@ -14,7 +14,7 @@ if __name__ == "__main__":
     #TODO Load config
     #TODO Check flags
 
-    path_config = ""
+    path_config = "/home/rami/Documents/UCHL1_HFD/pearth/config.json"
 
     config = {}
 

@@ -31,6 +31,7 @@ def read_nifti(path):
     return volume
 
 def from_npy(array):
+    print(f"dtype {array.dtype}")
     img = pi.newimage(array.dtype, array.shape[0], array.shape[1], array.shape[2])
     img.set_data(array)
     return img
@@ -38,35 +39,12 @@ def from_npy(array):
 def to_npy(img):
     return(img.get_data())
 
-def graph_extraction(config):
+def load_binary(path_in):
     """
-    Generate graphs of binary nerve segmentations and analyzes them afterwards
-    """
-    pi2location = config["graph_extraction"]["parameters"]["path_pi2"]
-    sys.path.append(pi2location)
-    from pi2py2 import *
-    pi = Pi2()
-
-    path_in = config["graph_extraction"]["path_nerve_mask"]
-    path_out = config["graph_extraction"]["path_out"]
-    
-    for mouse in os.listdir(path_in):
-        skeletonize_measurements(os.path.join(path_in, mouse), os.path.join(path_out, mouse), mouse, config)
-
-    analyze_measurements(path_out, path_out)
-
-def skeletonize_measurements(path_in, path_out, output_name, config):
-    """
-    Skeletonize a binary volumetric mask, postprocess the graph and save a distance-map enhanced graph.
-    This script is based on the pi2 example given at https://pi2-docs.readthedocs.io/en/latest/examples/ex_vessel_graph.html#vessel-graph-example
+    Reading image depending on input type (NIFTI/TIFF stack)
     Args:
-        path_in (str): Path of the input volumetric image, folder of TIFF images
-        path_out (str): Path of the output folder, will be created if not existing. Raw skeleton, measurements csv and vtk file is saved there
+        path_in (str) : Input path
     """
-    if not os.path.exists(path_out):
-        os.mkdir(path_out)
-
-
     print("Reading image...")
     if ".nii.gz" in path_in:
         print("Reading nifti image...")
@@ -74,11 +52,87 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
     else:
         # Read input data
         print("Reading TIFF stack...")
-        path_in = Path(path_in, "*.tif*")
-        with ProgressBar():
-            binary = imread(str(path_in))
-    binary = binary.astype(np.uint8)
+        paths_in = Path(path_in, "*.tif*")
+        if len(os.listdir(path_in)) > 0:
+            with ProgressBar():
+                binary = imread(str(paths_in))
+        else:
+            print(f"Path {path_in} empty, skipping...")
+            return
+    print("Read image, converting to uint8...")
+    # binary = binary.astype(np.uint8)
+    return binary
+
+def fuse_measurements():
+    """
+    Fuse measurements of cut volumes together into one volume
+    """
+    pass
+
+def graph_extraction(config):
+    """
+    Generate graphs of binary nerve segmentations and analyzes them afterwards
+    """
+    pi2location = config["graph_extraction"]["parameters"]["path_pi2"]
+    sys.path.append(pi2location)
+
+    lib = __import__('pi2py2')
+    globals().update({k: getattr(lib, k) for k in dir(lib) if not k.startswith('_')})
+
+    # from pi2py2 import *
+    global pi 
+    pi = Pi2()
+
+    path_in = config["graph_extraction"]["path_nerve_mask"]
+    path_out = config["graph_extraction"]["path_out"]
+
+    if not os.path.exists(path_out):
+        os.mkdir(path_out)
+    
+    for mouse in os.listdir(path_in):
+        binary = load_binary(os.path.join(path_in, mouse))
+        if config["graph_extraction"]["parameters"]["cut_volume"]:
+            binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})     
+            blocks_shape = binary.blocks.shape
+            block_shape = "not initialized"
+            for z in range(blocks_shape[0]):
+                for y in range(blocks_shape[1]):
+                    for x in range(blocks_shape[2]):
+                        if not os.path.exists(os.path.join(path_out, mouse, f"{mouse}_{z}_{y}_{x}.vtk")):
+                            print(f"Skeletonizing {mouse} z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
+                            print("Computing..")
+                            with ProgressBar():
+                                block = binary.blocks[z, y, x].compute()
+                                block_shape = block.shape
+                            if da.max(block) > 0:
+                                print(f"Computed, block has shape {block.shape}, starting pipeline...")
+                                skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config)
+                            else:
+                                print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
+                        else:
+                            print(f"Block {z} {y} {x} exists, skipping...")
+            fuse_measurements(path_out, config)
+        else:
+            skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
+
+    analyze_measurements(path_out, path_out)
+
+def skeletonize_measurements(binary, path_out, output_name, config):
+    """
+    Skeletonize a binary volumetric mask, postprocess the graph and save a distance-map enhanced graph.
+    This script is based on the pi2 example given at https://pi2-docs.readthedocs.io/en/latest/examples/ex_vessel_graph.html#vessel-graph-example
+    Args:
+        binary (np.array): binary segmentation array
+        path_out (str): Path of the output folder, will be created if not existing. Raw skeleton, measurements csv and vtk file is saved there
+    """
+    if not os.path.exists(path_out):
+        os.mkdir(path_out)
+
+    print("Sanity checks")
+    print(f"Shape {binary.shape}")
+    print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
     img = from_npy(binary)
+    print("Converted to pi2 image")
 
     # Skeletonize
     print("Generating skeleton...")
@@ -116,7 +170,8 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
 
     if config["graph_extraction"]["parameters"]["prune_skeleton"]:
         # Graph pruning 
-        pi.pruneskeleton(vertices, edges, measurements, points, 40, False, True)
+        pruning_threshold = config["graph_extraction"]["parameters"]["pruning_threshold"]
+        pi.pruneskeleton(vertices, edges, measurements, points, pruning_threshold, False, True)
 
     # Convert to vtk format in order to get radius for each point and line
     print("Generating vtk image...")
@@ -126,6 +181,7 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
     
     # Get radius for each point
     points_data = to_npy(vtkpoints)
+    print(f"points_data shape {points_data.shape}")
     radius_points = np.zeros([points_data.shape[0]])
     for i in range(0, points_data.shape[0]):
         p = points_data[i, :]
@@ -255,6 +311,12 @@ def skeletonize_measurements(path_in, path_out, output_name, config):
             }
     with open(os.path.join(path_out, f"{output_name}_properties.pickledump"), "wb") as handle:
         dill.dump(properties_dict, handle)
+    # Clean up
+    if not config["FLAGS"]["save_raw"]:
+        for item in os.listdir(path_out):
+            if ".raw" in item:
+                os.remove(os.path.join(path_out, item))
+
 
 def analyze_measurements(path_graphs, path_out):
     """
