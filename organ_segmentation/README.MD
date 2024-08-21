@@ -1,4 +1,4 @@
-# Internal Organ Segmentation segmentation
+# Internal Organ Segmentation 
 
 ## Requirements
 * Linux system with GPU (at least 24 GB GPU RAM) and CPU (at least 10 cores), and with 100 GB RAM.  
