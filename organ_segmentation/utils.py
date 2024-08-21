@@ -112,7 +112,7 @@ def downsample_folder(path_base , mousenames, channelnames , downsampling_factor
                         img_dim = (image.shape[1]//downsampling_factor_xy,image.shape[0]//downsampling_factor_xy)
                         image_ds = cv2.resize(image,img_dim, interpolation = cv2.INTER_NEAREST)#.astype(np.uint16
                         cv2.imwrite(targetfolder + fname,image_ds)
-                        print('Downsampled ' + fname + '('+str(i)+' of '+str(int(len(fnames)/downsampling_factor_z+1)) + ')')
+                        #print('Downsampled ' + fname + '('+str(i)+' of '+str(int(len(fnames)/downsampling_factor_z+1)) + ')')
                     except:
                         print(' [!] Error with ' + fname)
                 

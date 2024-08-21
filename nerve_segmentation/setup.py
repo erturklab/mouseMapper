@@ -23,7 +23,13 @@ setup(name='nnunet',
             "requests",
             "nibabel", 
             "tifffile", 
+            "pylibtiff",
             "matplotlib",
+            "connected-components-3d",
+            "opencv-python",
+            "monai",
+            "dask",
+            "zarr"
       ],
       entry_points={
           'console_scripts': [
