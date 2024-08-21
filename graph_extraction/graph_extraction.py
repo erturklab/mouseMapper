@@ -99,7 +99,7 @@ def graph_extraction(config):
                 for y in range(blocks_shape[1]):
                     for x in range(blocks_shape[2]):
                         if not os.path.exists(os.path.join(path_out, mouse, f"{mouse}_{z}_{y}_{x}.vtk")):
-                            print(f"Skeletonizing z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
+                            print(f"Skeletonizing {mouse} z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
                             print("Computing..")
                             with ProgressBar():
                                 block = binary.blocks[z, y, x].compute()
