@@ -3,7 +3,7 @@ import json
 import argparse
 
 from organ_segmentation.organ_segmentation import organ_segmentation
-from tissue_segmentation.tissue_segmentation import tissue_segmentation
+from Tissue_Module.tissue_segmentation import tissue_segmentation
 from inflammation_segmentation.inflammation_segmentation import inflammation_segmentation
 from nerve_segmentation.nerve_segmentation import nerve_segmentation
 from graph_extraction.graph_extraction import graph_extraction
