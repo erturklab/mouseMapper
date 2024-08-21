@@ -18,6 +18,7 @@ Many diseases, such as obesity, have systemic effects that impact multiple organ
 
 ## Prerequisites 
 The organ, tissue, and immune module require the prior installation of nnUNetv2. You can find that codebase here: [nnUNetv2](https://github.com/MIC-DKFZ/nnUNet/tree/master).
+The nerve module uses nnUNetv1, and you can find all necessary code [here](./nerve_segmentation/).
 
 Graph extraction requires the installation of [pi2/itl2](https://github.com/arttumiettinen/pi2). After installation, please change the config file to the corresponding pi2 location.
 
