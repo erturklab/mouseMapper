@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import nibabel as nib
 from shutil import copy
+from cc3d import connected_components
 
 
 
