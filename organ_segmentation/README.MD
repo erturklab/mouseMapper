@@ -38,5 +38,5 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 * Upsample the resulting masks
 * Optional : create masked non-organ slices for the downstream tissue segmentation
 
-[Example](./assets/organ_map_1.png)
+![Example](./assets/organ_map_1.png)
   
