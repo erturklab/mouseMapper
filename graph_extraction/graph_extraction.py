@@ -105,9 +105,10 @@ def graph_extraction(config):
                             block_shape = block.shape
                         if da.max(block) > 0:
                             print(f"Computed, block has shape {block.shape}, starting pipeline...")
-                            skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}", config)
+                            skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config)
                         else:
                             print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
+            fuse_measurements(path_out, config)
         else:
             skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
 
