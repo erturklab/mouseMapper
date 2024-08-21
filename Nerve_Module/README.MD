@@ -1,5 +1,6 @@
 # Peripheral nerves segmentation
 <img src="nerve_seg_example.png" width="500">
+
 ## Requirements
 * Linux system with GPU (at least 10 GB GPU RAM) and CPU (at least 10 cores), and with 100 GB RAM.  
 * Raw image data saved as a series of 16-bit TIFF files (.tif), one per z-plane. 
