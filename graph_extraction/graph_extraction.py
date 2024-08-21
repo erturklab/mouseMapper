@@ -98,16 +98,19 @@ def graph_extraction(config):
             for z in range(blocks_shape[0]):
                 for y in range(blocks_shape[1]):
                     for x in range(blocks_shape[2]):
-                        print(f"Skeletonizing z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
-                        print("Computing..")
-                        with ProgressBar():
-                            block = binary.blocks[z, y, x].compute()
-                            block_shape = block.shape
-                        if da.max(block) > 0:
-                            print(f"Computed, block has shape {block.shape}, starting pipeline...")
-                            skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config)
+                        if not os.path.exists(os.path.join(path_out, mouse, f"{mouse}_{z}_{y}_{x}.vtk")):
+                            print(f"Skeletonizing z {z}/{blocks_shape[0]} y {y}/{blocks_shape[1]} x {x}/{blocks_shape[2]}")
+                            print("Computing..")
+                            with ProgressBar():
+                                block = binary.blocks[z, y, x].compute()
+                                block_shape = block.shape
+                            if da.max(block) > 0:
+                                print(f"Computed, block has shape {block.shape}, starting pipeline...")
+                                skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config)
+                            else:
+                                print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
                         else:
-                            print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
+                            print(f"Block {z} {y} {x} exists, skipping...")
             fuse_measurements(path_out, config)
         else:
             skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
@@ -308,6 +311,12 @@ def skeletonize_measurements(binary, path_out, output_name, config):
             }
     with open(os.path.join(path_out, f"{output_name}_properties.pickledump"), "wb") as handle:
         dill.dump(properties_dict, handle)
+    # Clean up
+    if not config["FLAGS"]["save_raw"]:
+        for item in os.listdir(path_out):
+            if ".raw" in item:
+                os.remove(os.path.join(path_out, item))
+
 
 def analyze_measurements(path_graphs, path_out):
     """
