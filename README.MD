@@ -1,4 +1,9 @@
 # MouseMapper: Obesity-induced changes in peripheral nerves and immune cell dynamics on the whole body scale
+
+![GA](./HFD_GA%20(2).png)
+
+
+
 TODO: 
 - Get requirements into requirements.txt
 - Check your config part for additional parameters
