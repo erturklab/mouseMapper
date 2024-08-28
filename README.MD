@@ -9,11 +9,16 @@ Many diseases, such as obesity, have systemic effects that impact multiple organ
 
 [![YouTube](http://i.ytimg.com/vi/yjxQJOu3trE/hqdefault.jpg)](https://www.youtube.com/watch?v=yjxQJOu3trE)
 
+Please explore the image data yourself:
+* [Whole Body UCHL1 High fat diet mouse](https://wilddisco.translatum.xyz/datasets/erturk_lab/UCHL1_HFD_788/view#3718,7491,1848,0,1.3)
+* [Whole Body CD68 CHOW mouse](https://wilddisco.translatum.xyz/datasets/erturk_lab/CD68_chow_7790/view#2336,4181,2299,0,17.043)
+
 ## Modules
 
 * [Nerve Module](./nerve_segmentation/) - AI-driven module developed for the segmentation and quantification of the peripheral nervous system
 * [Immune Module](./Inflammation_Module/) - AI-driven module for the detection, localization and quantification of immune markers
 * [Tissue Module](./Tissue_Module/) - Ensemble of AI models for the segmentation of 20 internal organs, along with tissue types such as muscle, fat, bone, and bone marrow
+* [Neuron Module](./Graph_Module/) - Graph extraction for whole body nerve segmentations
 
 
 ## Prerequisites 
