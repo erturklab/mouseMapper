@@ -29,7 +29,7 @@
   
 ## Nerve segmentation
 * Download trained models and the plan file from [here](../models/nerve_segmentation), then put them in the created folder `RESULTS_FOLDER`.
-* Download the example [nerve data](../Nerve_Module/example_data) for testing. The example data includes two folders: one containing raw tiff slices named `Image`, and a folder of annotation tiff slices named `Mask`.
+* Download the [example data](../Nerve_Module/example_data) for testing, which is part of one trigeminal nerve. The example data includes two folders: one containing raw tiff slices named `Image`, and a folder of annotation tiff slices named `Mask`.
 * Compute the `Intensity_low` and `Intensity_high` for percentile normalization during the next inference step:
   ```
   cd {dir_whole_repo}/Nerve_Module/nnunet/utilities/
@@ -55,7 +55,8 @@
   cd {dir_whole_repo}/Nerve_Module/quantification/
   python grow_organ_mask.py -i_mask PATH_ORGAN_SEGMENTATION -o_mask OUT_DILATEDMASK_FOLDER
 	``` 
-* Upsample the dilated head mask to a `HEAD_MASK_FOLDER`, the mask of the rest organs to a `ORGAN_MASK_FOLDER`, and tissue mask to a `TISSUE_MASK_FOLDER` following [instructions](../Tissue_Module/Organ_Segmentation.ipynb).
+  `PATH_ORGAN_SEGMENTATION` is the path for the organ mask NIfTI file (.nii.gz). `OUT_DILATEDMASK_FOLDER` is the path for the resulted dilated organ mask NIfTI file (.nii.gz).
+* Upsample the dilated head mask and save it as tiff slices to a folder `HEAD_MASK_FOLDER`. The mask of the rest organs is upsampled and saved as tiff slices to a folder `ORGAN_MASK_FOLDER`, and the tissue mask to a folder `TISSUE_MASK_FOLDER` following [instructions](../Tissue_Module/Organ_Segmentation.ipynb).
 * Quantify nerve voxels/density in every organ/tissue:
   ```
   python quantification_nerve.py -nerve_mask OUTPUT_NERVE_SEGMENTATION_FOLDER -head_mask HEAD_MASK_FOLDER -organ_mask ORGAN_MASK_FOLDER -tissue_mask TISSUE_MASK_FOLDER -o_dir QUANTIFICATION_OUTPUTS_FOLDER
