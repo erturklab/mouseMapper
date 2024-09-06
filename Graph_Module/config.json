@@ -1,29 +1,5 @@
 {
-    "organ_segmentation":{
-        "path_raw":"",
-        "path_out":"",
-        "path_model":""
-    },
-    "tissue_segmentation":{
-        "path_raw":"",
-        "path_out":"",
-        "path_model":""
-    },
-    "inflammation_segmentation":{
-        "path_raw":"",
-        "path_organ_mask":"",
-        "path_tissue_mask":"",
-        "path_model":"",
-        "path_out":""   
-    },
-    "nerve_segmentation":{
-        "path_raw":"",
-        "path_model":"",
-        "path_out":"",
-        "parameters":{
-            "postprocessing":true
-        }
-    },
+
     "graph_extraction":{
         "path_nerve_mask":"",
         "path_organ_mask":"",
@@ -39,10 +15,6 @@
         }
     },
     "FLAGS":{
-        "perform_organ_segmentation":false,
-        "perform_tissue_segmentation":false,
-        "perform_inflammation_segmentation":false,
-        "perform_nerve_segmentation":false,
         "perform_graph_extraction":true
     }
 }
