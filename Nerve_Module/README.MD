@@ -42,7 +42,7 @@
   CUDA_VISIBLE_DEVICES=0 python predict_simple_dask.py -i RAW_TIFF_FOLDER -o OUTPUT_NERVE_SEGMENTATION_FOLDER -min Intensity_low -max Intensity_low -mdl {dir_whole_repo}/Nerve_Module/RESULTS_FOLDER/model_final_checkpoint.model -pl {dir_whole_repo}/Nerve_Module/RESULTS_FOLDER/plans.pkl -bs 1 -overlap 0.75
 	```  
   The nerve segmentation results will be saved as zarr files under the selected `OUTPUT_NERVE_SEGMENTATION_FOLDER`.
-* Convert infered segmentation results to tif slices:
+* Convert infered segmentation results to tiff slices:
   ```
   cd {dir_whole_repo}/Nerve_Module/nnunet/utilities/
   python zarr2tif.py -i RAW_TIFF_FOLDER -o OUTPUT_NERVE_SEGMENTATION_FOLDER -pl {dir_whole_repo}/Nerve_Module/RESULTS_FOLDER/plans.pkl
