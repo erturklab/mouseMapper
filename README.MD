@@ -17,6 +17,9 @@ Many diseases, such as obesity, have systemic effects that impact multiple organ
 
 
 ## Prerequisites 
+
+For running the analysis presented in this codebase, we recommend a workstation equipped with Linux and a GPU of at least 24 GB VRAM, and at least 64 GB RAM (depending on the size of the data to be analysed), and minimum 6 CPU cores. The code presented here is supported for Linux. System has been tested on Ubuntu 20.04 and Linux Rocky 9.4.
+
 The organ, tissue, and immune module require the prior installation of nnUNetv2. You can find that codebase here: [nnUNetv2](https://github.com/MIC-DKFZ/nnUNet/tree/master).
 The nerve module uses nnUNetv1, and you can find all necessary code [here](./nerve_segmentation/).
 
@@ -24,7 +27,7 @@ Graph extraction requires the installation of [pi2/itl2](https://github.com/artt
 
 ## Usage & Installation
 
-As our solution is highly modular, we invite the users to follow the instructions described within each module. 
+As our solution is highly modular, we invite the users to follow the instructions described within each module. Installation for each module can take around 30 minutes - 1 hour, with most time being taken up by the pytorch installations.
 
 In general, the code in this repository is designed to have 16 bit tiff zstacks as input and output.
 
