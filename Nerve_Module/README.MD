@@ -16,9 +16,10 @@
 * Install [pytorch](https://pytorch.org/get-started/locally/).
 * Install additional required libraries:
      ```
-     cd ./Nerve_Module
+     cd {dir_whole_repo}/Nerve_Module
      pip install -e .
 	```
+  `dir_whole_repo` refers to the directory where the entire repository is stored on your local device.
 * Create folders `nnUNet_raw_data_base`, `nnUNet_preprocessed`, `RESULTS_FOLDER` under [this folder](../Nerve_Module/) for storing raw data, preprocessed data and trained models, and set the three folders as environment variables:
   ```
    export nnUNet_raw_data_base="{dir_whole_repo}/Nerve_Module/nnUNet_raw_data_base"
@@ -34,6 +35,7 @@
   cd {dir_whole_repo}/Nerve_Module/nnunet/utilities/
   python stat_intensity_range_nozero.py -i RAW_TIFF_FOLDER -p 0.1
 	``` 
+  `RAW_TIFF_FOLDER` refers to the folder containing raw tiff slices.
 * Run nerve segmentation inference for a whole-body scan or part of the scan, saved as a series of 16-bit TIFF files (.tif):
   ```
   cd {dir_whole_repo}/Nerve_Module/nnunet/inference/
