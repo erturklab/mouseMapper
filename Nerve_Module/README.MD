@@ -16,7 +16,7 @@
 * Install [pytorch](https://pytorch.org/get-started/locally/).
 * Install additional required libraries:
      ```
-     cd ./nerve_segmentation
+     cd ./Nerve_Module
      pip install -e .
 	```
 * Create folders `nnUNet_raw_data_base`, `nnUNet_preprocessed`, `RESULTS_FOLDER` under [this folder](../Nerve_Module/) for storing raw data, preprocessed data and trained models, and set the three folders as environment variables:
