@@ -31,7 +31,7 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
   ```
   nnUNetv2_predict -d 68802 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
 	```  
-* Postprocess the predictions
+* Prediction on a downsampled mouse is expected to take up to 10 minutes. Postprocess the predictions
 * Upsample the resulting masks
 * Optional : create masked non-organ slices for the downstream tissue segmentation
 
@@ -45,7 +45,7 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
   ```
   nnUNetv2_predict -d 310 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
 	```  
-* Merge the resulting patches back to the original resoltion
+* Prediction on a 500x500x500 sized patch is expected to take around 13 minutes. Merge the resulting patches back to the original resolution
 
 ![Example](./assets/mouse_map.png)
 
