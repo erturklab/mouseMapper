@@ -33,9 +33,13 @@ def read_nifti(path):
 def _get_bb(patch):
     """Get the bounding box for a cell in a binary matrix
     """
-    mip_z = da.nonzero(da.max(patch, axis=0)).compute()
-    mip_x = da.nonzero(da.max(patch, axis=1)).compute()
-    mip_y = da.nonzero(da.max(patch, axis=2)).compute()
+    mip_z = da.nonzero(da.max(patch, axis=0))
+    mip_x = da.nonzero(da.max(patch, axis=1))
+    mip_y = da.nonzero(da.max(patch, axis=2))
+
+    mip_z.compute()
+    mip_x.compute()
+    mip_y.compute()
 
     bb = ((
         np.amin(mip_z[0]),
