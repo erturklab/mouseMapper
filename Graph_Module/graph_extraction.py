@@ -20,7 +20,7 @@ import pandas as pd
 def read_nifti(path):
     '''
     volume = readNifti(path)
-    
+
     Reads in the NiftiObject saved under path and returns a Numpy volume.
     '''
     if(path.find('.nii')==-1):
@@ -30,9 +30,36 @@ def read_nifti(path):
     volume = np.swapaxes(NiftiObject.dataobj,0,1)
     return volume
 
+def _get_bb(patch):
+    """Get the bounding box for a cell in a binary matrix
+    """
+    a = da.nonzero(patch)
+    bb = ((np.amin(a[0]).compute(),
+        np.amin(a[1]).compute(), 
+        np.amin(a[2]).compute()), 
+        (np.amax(a[0]).compute(), 
+        np.amax(a[1]).compute(), 
+        np.amax(a[2]).compute()))
+    return bb
+
+def DELETE_get_bb(patch):
+    """Get the bounding box for a cell in a binary matrix
+    """
+    a = da.where(patch > 0)
+    bb = ((da.min(a[0]), da.min(a[1]), da.min(a[2])), (da.max(a[0]), da.max(a[1]), da.max(a[2])))
+    # with ProgressBar():
+    #     bb = [b for b in bb]
+    return bb
+
 def from_npy(array):
     print(f"dtype {array.dtype}")
+    array = array.astype(np.uint8)
+    print(f"After casting {array.dtype}")
+    bb = _get_bb(array)
+    print(f"Bounding box {bb}")
+    print("Creating new pi image")
     img = pi.newimage(array.dtype, array.shape[0], array.shape[1], array.shape[2])
+    print("Setting data...")
     img.set_data(array)
     return img
 
@@ -80,19 +107,21 @@ def graph_extraction(config):
     globals().update({k: getattr(lib, k) for k in dir(lib) if not k.startswith('_')})
 
     # from pi2py2 import *
-    global pi 
+    global pi
     pi = Pi2()
 
     path_in = config["graph_extraction"]["path_nerve_mask"]
     path_out = config["graph_extraction"]["path_out"]
 
+    ProgressBar().register()
+
     if not os.path.exists(path_out):
         os.mkdir(path_out)
-    
+
     for mouse in os.listdir(path_in):
         binary = load_binary(os.path.join(path_in, mouse))
         if config["graph_extraction"]["parameters"]["cut_volume"]:
-            binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})     
+            binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})
             blocks_shape = binary.blocks.shape
             block_shape = "not initialized"
             for z in range(blocks_shape[0]):
@@ -106,7 +135,7 @@ def graph_extraction(config):
                                 block_shape = block.shape
                             if da.max(block) > 0:
                                 print(f"Computed, block has shape {block.shape}, starting pipeline...")
-                                skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config)
+                                skeletonize_measurements(block, os.path.join(path_out, mouse), f"{mouse}_{z}_{y}_{x}_{block_shape[0]}_{block_shape[1]}_{block_shape[2]}", config, cut_processing=True)
                             else:
                                 print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
                         else:
@@ -117,7 +146,7 @@ def graph_extraction(config):
 
     analyze_measurements(path_out, path_out)
 
-def skeletonize_measurements(binary, path_out, output_name, config):
+def skeletonize_measurements(binary, path_out, output_name, config, cut_processing=False):
     """
     Skeletonize a binary volumetric mask, postprocess the graph and save a distance-map enhanced graph.
     This script is based on the pi2 example given at https://pi2-docs.readthedocs.io/en/latest/examples/ex_vessel_graph.html#vessel-graph-example
@@ -130,7 +159,8 @@ def skeletonize_measurements(binary, path_out, output_name, config):
 
     print("Sanity checks")
     print(f"Shape {binary.shape}")
-    print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
+    if cut_processing:
+        print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
     img = from_npy(binary)
     print("Converted to pi2 image")
 
@@ -149,27 +179,27 @@ def skeletonize_measurements(binary, path_out, output_name, config):
     print("Calculating distance map...")
     img = from_npy(binary)
     dmap = pi.newimage(ImageDataType.FLOAT32)
-    
+
     pi.dmap(img, dmap)
-    
+
     dmap_data = to_npy(dmap)
-    
+
     # Trace skeleton
     print("Tracing skeleton...")
     skeleton = from_npy(skel)
-    
+
     smoothing_sigma  = 2
     max_displacement = 2
-    
+
     vertices         = pi.newimage(ImageDataType.FLOAT32)
     edges            = pi.newimage(ImageDataType.UINT64)
     measurements     = pi.newimage(ImageDataType.FLOAT32)
     points           = pi.newimage(ImageDataType.INT32)
-    
+
     pi.tracelineskeleton(skeleton, vertices, edges, measurements, points, True, 1, smoothing_sigma, max_displacement)
 
     if config["graph_extraction"]["parameters"]["prune_skeleton"]:
-        # Graph pruning 
+        # Graph pruning
         pruning_threshold = config["graph_extraction"]["parameters"]["pruning_threshold"]
         pi.pruneskeleton(vertices, edges, measurements, points, pruning_threshold, False, True)
 
@@ -178,7 +208,7 @@ def skeletonize_measurements(binary, path_out, output_name, config):
     vtkpoints = pi.newimage()
     vtklines = pi.newimage()
     pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines)
-    
+
     # Get radius for each point
     points_data = to_npy(vtkpoints)
     print(f"points_data shape {points_data.shape}")
@@ -265,7 +295,7 @@ def skeletonize_measurements(binary, path_out, output_name, config):
     for k in range(0, edge_count):
         count = lines_data[i]
         i += 1
-    
+
         R = 0
         for n in range(0, count):
             index = lines_data[i]
@@ -273,18 +303,18 @@ def skeletonize_measurements(binary, path_out, output_name, config):
             p = points_data[index, :]
             R += dmap_data[int(p[1]), int(p[0]), int(p[2])]
         R /= count
-    
+
         radius_lines.append(R)
-    
+
     radius_lines = np.array(radius_lines)
-    
-    
+
+
     # Convert to vtk format again, now with smoothing the point coordinates to get non-jagged branches.
     vtkpoints = pi.newimage()
     vtklines = pi.newimage()
     pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines, smoothing_sigma, max_displacement)
-    
-    
+
+
     # Write to file
     print("Saving vtk image...")
     pi.writevtk(vtkpoints, vtklines, os.path.join(path_out, f"{output_name}.vtk") , "radius", radius_points, "radius", radius_lines)
@@ -340,11 +370,11 @@ def analyze_measurements(path_graphs, path_out):
         deg = {}
         for i in range(0, len(properties[item]["vertices"])):
                 deg[i] = 0
-        
+
         for i in range(0, edges.shape[0]):
                 deg[edges[i, 0]] += 1
                 deg[edges[i, 1]] += 1
-            
+
         leaf_nodes = []
         for i in range(0, edges.shape[0]):
                 n1 = edges[i, 0]
@@ -353,11 +383,11 @@ def analyze_measurements(path_graphs, path_out):
                 if deg[n1] == 1 or deg[n2] == 1:
                     leaf_node = True
                 leaf_nodes.append(leaf_node)
-            
-        df = pd.concat([df, 
+
+        df = pd.concat([df,
                         pd.DataFrame({
-                            columns[0]:item, 
-                            columns[1]:[np.sum(leaf_nodes)], 
+                            columns[0]:item,
+                            columns[1]:[np.sum(leaf_nodes)],
                             columns[2]:[np.nan],
                             columns[3]:[np.nan],
                             columns[4]:[np.nan],
