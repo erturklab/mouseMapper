@@ -33,13 +33,18 @@ def read_nifti(path):
 def _get_bb(patch):
     """Get the bounding box for a cell in a binary matrix
     """
-    mip_z = da.nonzero(da.max(patch, axis=0))
-    mip_x = da.nonzero(da.max(patch, axis=1))
-    mip_y = da.nonzero(da.max(patch, axis=2))
+    mip_z = da.max(patch, axis=0)
+    mip_x = da.max(patch, axis=1)
+    mip_y = da.max(patch, axis=2)
 
     mip_z.compute()
     mip_x.compute()
     mip_y.compute()
+
+    mip_z = np.nonzero(mip_z)
+    mip_x = np.nonzero(mip_x)
+    mip_y = np.nonzero(mip_y)
+
 
     bb = ((
         np.amin(mip_z[0]),
@@ -50,15 +55,6 @@ def _get_bb(patch):
         np.amax(mip_z[1]), 
         np.amax(mip_z[1])
         ))
-    return bb
-
-def DELETE_get_bb(patch):
-    """Get the bounding box for a cell in a binary matrix
-    """
-    a = da.where(patch > 0)
-    bb = ((da.min(a[0]), da.min(a[1]), da.min(a[2])), (da.max(a[0]), da.max(a[1]), da.max(a[2])))
-    # with ProgressBar():
-    #     bb = [b for b in bb]
     return bb
 
 def from_npy(array):
@@ -85,7 +81,7 @@ def load_binary(path_in):
     print("Reading image...")
     if ".nii.gz" in path_in:
         print("Reading nifti image...")
-        binary = read_nifti(path_in)
+        binary = da.from_array(read_nifti(path_in))
     else:
         # Read input data
         print("Reading TIFF stack...")
@@ -131,7 +127,13 @@ def graph_extraction(config):
     for mouse in os.listdir(path_in):
         binary = load_binary(os.path.join(path_in, mouse))
         if config["graph_extraction"]["parameters"]["cut_volume"]:
-            binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})
+            sub_shapes = [
+                    int(binary.shape[0] / 2), 
+                    int(binary.shape[1] / 4), 
+                    int(binary.shape[2] / 4)
+                    ]
+            # binary = binary.rechunk({0: 2000, 1: 5000, 2: 5000})
+            binary = binary.rechunk({0: sub_shapes[0], 1: sub_shapes[1], 2: sub_shapes[2]})
             blocks_shape = binary.blocks.shape
             block_shape = "not initialized"
             for z in range(blocks_shape[0]):
@@ -167,195 +169,229 @@ def skeletonize_measurements(binary, path_out, output_name, config, cut_processi
     if not os.path.exists(path_out):
         os.mkdir(path_out)
 
-    print("Sanity checks")
-    print(f"Shape {binary.shape}")
-    if cut_processing:
-        print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
-    img = from_npy(binary)
-    print("Converted to pi2 image")
+    if os.path.exists(os.path.join(path_out, f"{output_name}.vtk")):
+        print("Volume exists, skipping..")
+    else:
+        print("Sanity checks")
+        print(f"Shape {binary.shape}")
+        if cut_processing:
+            print(f"Min/Max {da.min(binary).compute()} {da.max(binary).compute()}")
+        img = from_npy(binary)
+        print("Converted to pi2 image")
 
-    # Skeletonize
-    print("Generating skeleton...")
-    pi.surfaceskeleton(img, False)
-
-    #intermediate_path = "./skeletonization_steps/skel_intermediate.raw"
-    intermediate_path = os.path.join(path_out, f"{output_name}_skeleton_intermediate.raw")
-    pi.writeraw(img, intermediate_path)
-
-    # Save for later
-    skel = to_npy(img)
-
-    # Create a distance map
-    print("Calculating distance map...")
-    img = from_npy(binary)
-    dmap = pi.newimage(ImageDataType.FLOAT32)
-
-    pi.dmap(img, dmap)
-
-    dmap_data = to_npy(dmap)
-
-    # Trace skeleton
-    print("Tracing skeleton...")
-    skeleton = from_npy(skel)
-
-    smoothing_sigma  = 2
-    max_displacement = 2
-
-    vertices         = pi.newimage(ImageDataType.FLOAT32)
-    edges            = pi.newimage(ImageDataType.UINT64)
-    measurements     = pi.newimage(ImageDataType.FLOAT32)
-    points           = pi.newimage(ImageDataType.INT32)
-
-    pi.tracelineskeleton(skeleton, vertices, edges, measurements, points, True, 1, smoothing_sigma, max_displacement)
-
-    if config["graph_extraction"]["parameters"]["prune_skeleton"]:
-        # Graph pruning
-        pruning_threshold = config["graph_extraction"]["parameters"]["pruning_threshold"]
-        pi.pruneskeleton(vertices, edges, measurements, points, pruning_threshold, False, True)
-
-    # Convert to vtk format in order to get radius for each point and line
-    print("Generating vtk image...")
-    vtkpoints = pi.newimage()
-    vtklines = pi.newimage()
-    pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines)
-
-    # Get radius for each point
-    points_data = to_npy(vtkpoints)
-    print(f"points_data shape {points_data.shape}")
-    radius_points = np.zeros([points_data.shape[0]])
-    for i in range(0, points_data.shape[0]):
-        p = points_data[i, :]
-        r = dmap_data[int(p[1]), int(p[0]), int(p[2])]
-        radius_points[i] = r
-
-    # Next, we will remove all edges that has at least one free and and whose L/r < 2.
-    # First, get edges, vertices, and branch length as NumPy arrays.
-    old_edges   = to_npy(edges)
-    vert_coords = to_npy(vertices)
-    # The tracelineskeleton measures branch length by anchored convolution and returns it in the
-    # measurements image.
-    meas_data = to_npy(measurements)
-    length_data = meas_data[:, 1]
-
-    # Calculate degree of each vertex
-    deg = {}
-    for i in range(0, vert_coords.shape[0]):
-        deg[i] = 0
-
-    for i in range(0, old_edges.shape[0]):
-        deg[old_edges[i, 0]] += 1
-        deg[old_edges[i, 1]] += 1
-
-    if config["graph_extraction"]["parameters"]["remove_small_nodes"]:
-        # Determine which edges should be removed
-        remove_flags = []
-        for i in range(0, old_edges.shape[0]):
-                n1 = old_edges[i, 0]
-                n2 = old_edges[i, 1]
-
-                # Remove edge if it has at least one free end point, and if L/r < 2, where
-                # r = max(r_1, r_2) and r_1 and r_2 are radii at the end points or the edge.
-                should_remove = False
-                if deg[n1] == 1 or deg[n2] == 1:
-
-                        p1 = vert_coords[n1, :]
-                        p2 = vert_coords[n2, :]
-
-                        r1 = dmap_data[int(p1[1]), int(p1[0]), int(p1[2])]
-                        r2 = dmap_data[int(p2[1]), int(p2[0]), int(p2[2])]
-
-                        r = max(r1, r2)
-                        L = length_data[i]
-
-                        if L < 2 * r:
-                                should_remove = True
-
-                ## Remove very short isolated branches, too.
-                if deg[n1] == 1 and deg[n2] == 1:
-                        L = length_data[i]
-                        if L < 5 / 0.75: # (5 um) / (0.75 um/pixel)
-                                should_remove = True
-
-                remove_flags.append(should_remove)
-
-        remove_flags = np.array(remove_flags).astype(np.uint8)
-        print(f"Before dynamic pruning: {old_edges.shape[0]} edges")
-        print(f"Removing {np.sum(remove_flags)} edges")
-
-        # This call adjusts the vertices, edges, and measurements images such that
-        # the edges for which remove_flags entry is True are removed from the graph.
-        # Disable distributed processing for this - not yet implemented
+        # Skeletonize
+        print("Generating skeleton...")
+        pi.surfaceskeleton(img, False)
 
         #intermediate_path = "./skeletonization_steps/skel_intermediate.raw"
-        intermediate_path = os.path.join(path_out, f"{output_name}_intermediate.raw")
+        intermediate_path = os.path.join(path_out, f"{output_name}_skeleton_intermediate.raw")
         pi.writeraw(img, intermediate_path)
 
-        #img = pi.newimage
-        #pi.readraw(img, intermediate_path)
-        pi.removeedges(vertices, edges, measurements, points, remove_flags, True, True)
+        # Save for later
+        skel = to_npy(img)
 
-    # Get average radius for each branch
-    # Notice that the vtklines image has a special format that is detailed in
-    # the documentation of getpointsandlines function.
-    lines_data = to_npy(vtklines)
-    radius_lines = []
-    i = 0
-    edge_count = lines_data[i]
-    i += 1
-    for k in range(0, edge_count):
-        count = lines_data[i]
+        # Create a distance map
+        print("Calculating distance map...")
+        img = from_npy(binary)
+        dmap = pi.newimage(ImageDataType.FLOAT32)
+
+        pi.dmap(img, dmap)
+
+        dmap_data = to_npy(dmap)
+
+        # Trace skeleton
+        print("Tracing skeleton...")
+        skeleton = from_npy(skel)
+
+        smoothing_sigma  = 2
+        max_displacement = 2
+
+        vertices         = pi.newimage(ImageDataType.FLOAT32)
+        edges            = pi.newimage(ImageDataType.UINT64)
+        measurements     = pi.newimage(ImageDataType.FLOAT32)
+        points           = pi.newimage(ImageDataType.INT32)
+
+        pi.tracelineskeleton(skeleton, vertices, edges, measurements, points, True, 1, smoothing_sigma, max_displacement)
+
+        if config["graph_extraction"]["parameters"]["prune_skeleton"]:
+            # Graph pruning
+            pruning_threshold = config["graph_extraction"]["parameters"]["pruning_threshold"]
+            pi.pruneskeleton(vertices, edges, measurements, points, pruning_threshold, False, True)
+
+        # Convert to vtk format in order to get radius for each point and line
+        print("Generating vtk image...")
+        vtkpoints = pi.newimage()
+        vtklines = pi.newimage()
+        pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines)
+
+        # Get radius for each point
+        points_data = to_npy(vtkpoints)
+        print(f"points_data shape {points_data.shape}")
+        radius_points = np.zeros([points_data.shape[0]])
+        if points_data.shape == (3,):
+            points_data = np.array([points_data])
+            print(points_data.shape)
+        for i in range(0, points_data.shape[0]):
+            p = points_data[i, :]
+            r = dmap_data[int(p[1]), int(p[0]), int(p[2])]
+            radius_points[i] = r
+
+        # Next, we will remove all edges that has at least one free and and whose L/r < 2.
+        # First, get edges, vertices, and branch length as NumPy arrays.
+        old_edges   = to_npy(edges)
+        vert_coords = to_npy(vertices)
+        # The tracelineskeleton measures branch length by anchored convolution and returns it in the
+        # measurements image.
+        meas_data = to_npy(measurements)
+        print(f"Measurements shape:\t{meas_data.shape}")
+        print(f"Measurements:\n{meas_data}")
+        try:
+            if meas_data.shape == (3,):
+                meas_data = np.array([meas_data])
+            length_data = meas_data[:, 1]
+        except IndexError as ie:
+            print(f"{ie}:\n {binary.shape}\n {skel.shape}")
+            print(f"Measurements:\n{meas_data}")
+            print(f"Points:\n{points_data}")
+            print(f"Lines:\n{to_npy(vtklines)}")
+            exit()
+        # Calculate degree of each vertex
+        deg = {}
+        for i in range(0, vert_coords.shape[0]):
+            deg[i] = 0
+
+        try:
+            print(f"Old edges shape {old_edges.shape}")
+            if old_edges.shape == (2,):
+                old_edges = np.array([old_edges])
+            for i in range(0, old_edges.shape[0]):
+                deg[old_edges[i, 0]] += 1
+                deg[old_edges[i, 1]] += 1
+        except IndexError as ie:
+            print(f"{ie}")
+            exit()
+
+        if config["graph_extraction"]["parameters"]["remove_small_nodes"]:
+            # Determine which edges should be removed
+            remove_flags = []
+            for i in range(0, old_edges.shape[0]):
+                    n1 = old_edges[i, 0]
+                    n2 = old_edges[i, 1]
+
+                    # Remove edge if it has at least one free end point, and if L/r < 2, where
+                    # r = max(r_1, r_2) and r_1 and r_2 are radii at the end points or the edge.
+                    should_remove = False
+                    if deg[n1] == 1 or deg[n2] == 1:
+
+                            p1 = vert_coords[n1, :]
+                            p2 = vert_coords[n2, :]
+
+                            r1 = dmap_data[int(p1[1]), int(p1[0]), int(p1[2])]
+                            r2 = dmap_data[int(p2[1]), int(p2[0]), int(p2[2])]
+
+                            r = max(r1, r2)
+                            L = length_data[i]
+
+                            if L < 2 * r:
+                                    should_remove = True
+
+                    ## Remove very short isolated branches, too.
+                    if deg[n1] == 1 and deg[n2] == 1:
+                            L = length_data[i]
+                            if L < 5 / 0.75: # (5 um) / (0.75 um/pixel)
+                                    should_remove = True
+
+                    remove_flags.append(should_remove)
+
+            remove_flags = np.array(remove_flags).astype(np.uint8)
+            print(f"Before dynamic pruning: {old_edges.shape[0]} edges")
+
+            # This call adjusts the vertices, edges, and measurements images such that
+            # the edges for which remove_flags entry is True are removed from the graph.
+            # Disable distributed processing for this - not yet implemented
+
+            #intermediate_path = "./skeletonization_steps/skel_intermediate.raw"
+            intermediate_path = os.path.join(path_out, f"{output_name}_intermediate.raw")
+            pi.writeraw(img, intermediate_path)
+
+            #img = pi.newimage
+            #pi.readraw(img, intermediate_path)
+            if np.sum(remove_flags > 0):
+                print(f"Removing {np.sum(remove_flags)} edges")
+                pi.removeedges(vertices, edges, measurements, points, remove_flags, True, True)
+            else:
+                print("No edge candidates detected, proceeding...")
+
+        # Get average radius for each branch
+        # Notice that the vtklines image has a special format that is detailed in
+        # the documentation of getpointsandlines function.
+        lines_data = to_npy(vtklines)
+        radius_lines = []
+        i = 0
+        edge_count = lines_data[i]
         i += 1
-
-        R = 0
-        for n in range(0, count):
-            index = lines_data[i]
+        for k in range(0, edge_count):
+            count = lines_data[i]
             i += 1
-            p = points_data[index, :]
-            R += dmap_data[int(p[1]), int(p[0]), int(p[2])]
-        R /= count
 
-        radius_lines.append(R)
+            R = 0
+            for n in range(0, count):
+                index = lines_data[i]
+                i += 1
+                p = points_data[index, :]
+                R += dmap_data[int(p[1]), int(p[0]), int(p[2])]
+            R /= count
 
-    radius_lines = np.array(radius_lines)
+            radius_lines.append(R)
 
-
-    # Convert to vtk format again, now with smoothing the point coordinates to get non-jagged branches.
-    vtkpoints = pi.newimage()
-    vtklines = pi.newimage()
-    pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines, smoothing_sigma, max_displacement)
-
-
-    # Write to file
-    print("Saving vtk image...")
-    pi.writevtk(vtkpoints, vtklines, os.path.join(path_out, f"{output_name}.vtk") , "radius", radius_points, "radius", radius_lines)
+        radius_lines = np.array(radius_lines)
 
 
-    # Generate and save figures
-    print("Saving figures...")
-    plt.hist(radius_points, bins="auto")
-    plt.savefig(os.path.join(path_out, f"{output_name}_radius_points.png"))
-    plt.hist(radius_lines, bins="auto")
-    plt.savefig(os.path.join(path_out, f"{output_name}_radius_lines.png"))
-    plt.hist(deg.values(),bins="auto")
-    plt.savefig(os.path.join(path_out, f"{output_name}_degree.png"))
+        # Convert to vtk format again, now with smoothing the point coordinates to get non-jagged branches.
+        vtkpoints = pi.newimage()
+        vtklines = pi.newimage()
+        pi.getpointsandlines(vertices, edges, measurements, points, vtkpoints, vtklines, smoothing_sigma, max_displacement)
 
-    # Save properties dict
-    properties_dict = {
-            "vertices":to_npy(vertices),
-            "edges":to_npy(edges),
-            "measurements":to_npy(measurements),
-            "points":to_npy(points),
-            "radius_points":radius_points,
-            "radius_lines":radius_lines,
-            "deg":deg.values()
-            }
-    with open(os.path.join(path_out, f"{output_name}_properties.pickledump"), "wb") as handle:
-        dill.dump(properties_dict, handle)
-    # Clean up
-    if not config["FLAGS"]["save_raw"]:
-        for item in os.listdir(path_out):
-            if ".raw" in item:
-                os.remove(os.path.join(path_out, item))
+
+        # Write to file
+        #TODO: Could be empty, then array needs to be restructured
+        print("Saving vtk image...")
+        print(f"vtkpoints\t{to_npy(vtkpoints).shape}")
+        print(f"vtklines\t{to_npy(vtklines).shape}")
+        print(f"radius_points\t{radius_points.shape}")
+        print(f"radius_lines\t{radius_lines.shape}\n{radius_lines}")
+        if radius_lines.shape == (1,):
+            radius_lines =  np.array([1., 1.])
+        print(f"radius_lines\t{radius_lines.shape}\n{radius_lines}")
+        pi.writevtk(vtkpoints, vtklines, os.path.join(path_out, f"{output_name}.vtk") , "radius", radius_points, "radius", radius_lines)
+
+
+        # Generate and save figures
+        print("Saving figures...")
+        plt.hist(radius_points, bins="auto")
+        plt.savefig(os.path.join(path_out, f"{output_name}_radius_points.png"))
+        plt.hist(radius_lines, bins="auto")
+        plt.savefig(os.path.join(path_out, f"{output_name}_radius_lines.png"))
+        plt.hist(deg.values(),bins="auto")
+        plt.savefig(os.path.join(path_out, f"{output_name}_degree.png"))
+
+        # Save properties dict
+        properties_dict = {
+                "vertices":to_npy(vertices),
+                "edges":to_npy(edges),
+                "measurements":to_npy(measurements),
+                "points":to_npy(points),
+                "radius_points":radius_points,
+                "radius_lines":radius_lines,
+                "deg":deg.values()
+                }
+        with open(os.path.join(path_out, f"{output_name}_properties.pickledump"), "wb") as handle:
+            dill.dump(properties_dict, handle)
+        # Clean up
+        if not config["FLAGS"]["save_raw"]:
+            for item in os.listdir(path_out):
+                if ".raw" in item:
+                    os.remove(os.path.join(path_out, item))
 
 
 def analyze_measurements(path_graphs, path_out):
