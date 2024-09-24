@@ -367,14 +367,14 @@ def skeletonize_measurements(binary, path_out, output_name, config, cut_processi
         pi.writevtk(vtkpoints, vtklines, os.path.join(path_out, f"{output_name}.vtk") , "radius", radius_points, "radius", radius_lines)
 
 
-        # Generate and save figures
-        print("Saving figures...")
-        plt.hist(radius_points, bins="auto")
-        plt.savefig(os.path.join(path_out, f"{output_name}_radius_points.png"))
-        plt.hist(radius_lines, bins="auto")
-        plt.savefig(os.path.join(path_out, f"{output_name}_radius_lines.png"))
-        plt.hist(deg.values(),bins="auto")
-        plt.savefig(os.path.join(path_out, f"{output_name}_degree.png"))
+        # # Generate and save figures
+        # print("Saving figures...")
+        # plt.hist(radius_points, bins="auto")
+        # plt.savefig(os.path.join(path_out, f"{output_name}_radius_points.png"))
+        # plt.hist(radius_lines, bins="auto")
+        # plt.savefig(os.path.join(path_out, f"{output_name}_radius_lines.png"))
+        # plt.hist(deg.values(),bins="auto")
+        # plt.savefig(os.path.join(path_out, f"{output_name}_degree.png"))
 
         # Save properties dict
         properties_dict = {
@@ -384,6 +384,8 @@ def skeletonize_measurements(binary, path_out, output_name, config, cut_processi
                 "points":to_npy(points),
                 "radius_points":radius_points,
                 "radius_lines":radius_lines,
+                "vtkpoints":to_npy(vtkpoints),
+                "vtklines":to_npy(vtklines),
                 "deg":deg.values()
                 }
         with open(os.path.join(path_out, f"{output_name}_properties.pickledump"), "wb") as handle:
