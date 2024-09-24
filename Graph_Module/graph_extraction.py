@@ -229,13 +229,16 @@ def skeletonize_measurements(binary, path_out, output_name, config, cut_processi
         points_data = to_npy(vtkpoints)
         print(f"points_data shape {points_data.shape}")
         radius_points = np.zeros([points_data.shape[0]])
-        if points_data.shape == (3,):
-            points_data = np.array([points_data])
-            print(points_data.shape)
+        # if points_data.shape == (3,):
+        #     points_data = np.array([points_data])
+        #     print(points_data.shape)
         for i in range(0, points_data.shape[0]):
-            p = points_data[i, :]
-            r = dmap_data[int(p[1]), int(p[0]), int(p[2])]
-            radius_points[i] = r
+            if points_data.shape == (3,):
+                pass
+            else:
+                p = points_data[i, :]
+                r = dmap_data[int(p[1]), int(p[0]), int(p[2])]
+                radius_points[i] = r
 
         # Next, we will remove all edges that has at least one free and and whose L/r < 2.
         # First, get edges, vertices, and branch length as NumPy arrays.
