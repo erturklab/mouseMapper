@@ -6,6 +6,7 @@ import dill
 import dask
 import dask.array as da
 
+import pandas as pd
 import numpy as np
 import nibabel as nib
 
@@ -15,7 +16,7 @@ from dask.array.image import imread
 from matplotlib import pyplot as plt
 from pathlib import Path
 
-import pandas as pd
+from fuse_graphs import fuse_graphs
 
 def read_nifti(path):
     '''
@@ -96,11 +97,11 @@ def load_binary(path_in):
     # binary = binary.astype(np.uint8)
     return binary
 
-def fuse_measurements():
+def fuse_measurements(path_out, mouse):
     """
     Fuse measurements of cut volumes together into one volume
     """
-    pass
+    fuse_graphs(path_out, os.path.join(path_out, mouse.replace(".nii.gz","")))
 
 def graph_extraction(config):
     """
@@ -152,7 +153,7 @@ def graph_extraction(config):
                                 print(f"Block {z} {y} {x} of shape {block_shape} is empty, skipping...")
                         else:
                             print(f"Block {z} {y} {x} exists, skipping...")
-            fuse_measurements(path_out, config)
+            fuse_measurements(path_out, mouse)
         else:
             skeletonize_measurements(binary, os.path.join(path_out, mouse), mouse, config)
 
