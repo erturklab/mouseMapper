@@ -40,10 +40,19 @@ def add_zyx_offset(block_coords, block_size, graph):
     Returns:
         block_offset
     """
-    for vertex in graph["vertices"]:
-         vertex[0] += block_coords[0] * block_size[0]  
-         vertex[1] += block_coords[1] * block_size[1]  
-         vertex[2] += block_coords[2] * block_size[2]  
+    for vertex_i, vertex in enumerate(graph["vertices"]):
+        print("-"*30)
+        print(f"Len vertices:\t{len(graph['vertices'])}")
+        try:
+            print(f"Vertex\t{vertex}\nCoords\t{block_coords}\nSize\t{block_size}")
+            vertex[0] += block_coords[0] * block_size[0]  
+            vertex[1] += block_coords[1] * block_size[1]  
+            vertex[2] += block_coords[2] * block_size[2]  
+        except IndexError as ie:
+            print(f"{ie} for\n Vertex\t{vertex}\nCoords\t{block_coords}\nSize\t{block_size}")
+            #TODO Update edges, too
+            graph["vertices"] = np.delete(graph["vertices"], vertex_i)
+
     return [block_coords[0] * block_size[0],block_coords[1] * block_size[1],block_coords[2] * block_size[2]]
 
 def get_relevant_nodes(block_coordinates, max_size=[2,2,2]):
@@ -186,6 +195,7 @@ def fuse_graphs(path_graphs, path_out, threshold = 20):
 
     """
     
+    print(f"Fusing graphs in {path_graphs}")
     # graph dict
     graph_dict = {}
 
@@ -193,7 +203,9 @@ def fuse_graphs(path_graphs, path_out, threshold = 20):
 
     # First iteration to find out the maximum amount of blocks
     for graph_name in [x for x in os.listdir(path_graphs) if ".pickledump" in x]:
+        print(f"Graph name:\n{graph_name}")
         graph_info = graph_name.split(".")[0]
+        print(f"Graph info:\n{graph_info}")
         block_coords = [
                     int(graph_info.split("_")[2]),
                     int(graph_info.split("_")[3]),
