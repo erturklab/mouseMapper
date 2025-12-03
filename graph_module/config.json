@@ -1,0 +1,14 @@
+{
+    "in_file": "~/",  // Path to the input zarr file
+    "patch_size": [1024, 1024, 1024],  // hyper parameter for the patch size
+    "pad": [64, 64, 64],  // hyper parameter for the padding size
+    "out_file": "~/", // Path to the output vtp file
+    
+    "workspace_file": "Graph_Module/vesselgraphextraction.vws", // Path to the .vws workspace file
+    "voreen_tool_path": "/home/software/voreen-src-unix-nightly/build/bin", // Path to the voreen tool
+    "bulge_size": 3.0, // hyper parameter for the bulge size
+
+    "workdir": "~/", // Path to the working directory, wher voreen_tmpdir and voreen_output folder will be created
+
+    "num_threads": 8 // Number of threads to be used
+}
