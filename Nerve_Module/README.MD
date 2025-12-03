@@ -7,9 +7,9 @@
 ## Installation
 * Install [CUDA](https://developer.nvidia.com/cuda-toolkit) and [cuDNN](https://developer.nvidia.com/cudnn).
 * Install [Anaconda](https://www.anaconda.com/download#downloads) to create and control virtual environments.
-* Install Python 3.9 or higher version by Anaconda.
+* Install Python 3.10 or higher version by Anaconda.
   ```
-    conda create -n env python=3.9
+    conda create -n env python=3.10
 	conda activate env
 	```
 * Install [pytorch](https://pytorch.org/get-started/locally/)<=2.5.1.
@@ -29,7 +29,7 @@
   
 ## Nerve segmentation
 * Download trained models from [here](../models/nerve_segmentation)
-* Download the [example data](../Nerve_Module/example_data) for testing, which is part of one trigeminal nerve. The example data includes two folders: one containing raw tiff slices named `Image`, and a folder of annotation tiff slices named `Mask`.
+* Download the [example data](../Nerve_Module/example_data) for testing and uncompress them. The example data is part of one trigeminal nerve. It includes two parts: one containing raw tiff slices named `raw`, and a folder of annotation tiff slices named `gt`.
 * Convert raw tiff slices into Zarr file, then compute the `INTENSITY_LOW` and `INTENSITY_HIGH` for percentile normalization during the next inference step:
   ```
   cd inference
