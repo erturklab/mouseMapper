@@ -25,11 +25,11 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
    
   
 ## Organ segmentation
-* Download trained model zip from [here](TODO), and select model 999 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
+* Download trained model zip from [here](../models/), and select model 998 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
 * Run organ downsampling. You can find the necessary code and an exampl in [Organ_Segmentation.ipynp](./Organ_Segmentation.ipynb)
 * Run organ segmentation inference for a whole-body scan:
   ```
-  nnUNetv2_predict -d 999 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
+  nnUNetv2_predict -d 998 -i path_ouput_preprocessing -o folder_out_pred -c 3d_fullres -tr nnUNetTrainer 
 	```  
 * Prediction on a downsampled mouse is expected to take up to 10 minutes. Postprocess the predictions
 * Upsample the resulting masks
