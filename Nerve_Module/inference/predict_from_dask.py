@@ -14,7 +14,7 @@ from dynamic_network_architectures.building_blocks.helper import convert_conv_op
 from dynamic_network_architectures.initialization.weight_init import InitWeights_He
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
 
-from sliding_window_inferer_zarr_tissue import SlidingWindowInferer
+from sliding_window_inferer_zarr import SlidingWindowInferer
 
 
 class vesselFM(nn.Module):
