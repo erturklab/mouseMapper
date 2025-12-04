@@ -15,10 +15,10 @@ Please explore the image data yourself:
 
 ## Modules
 
-* [Nerve Module](./nerve_segmentation/) - AI-driven module developed for the segmentation and quantification of the peripheral nervous system
-* [Immune Module](./Inflammation_Module/) - AI-driven module for the detection, localization and quantification of immune markers
+* [Nerve Module](./Nerve_Module/) - AI-driven module developed for the segmentation and quantification of the peripheral nervous system
+* [Immune Module](./Immune_Module/) - AI-driven module for the detection, localization and quantification of immune markers
 * [Tissue Module](./Tissue_Module/) - Ensemble of AI models for the segmentation of 20 internal organs, along with tissue types such as muscle, fat, bone, and bone marrow
-* [Neuron Module](./Graph_Module/) - Graph extraction for whole body nerve segmentations
+* [Neuron Module](./graph_module/) - Graph extraction for whole body nerve segmentations
 
 
 ## Prerequisites 
