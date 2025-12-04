@@ -17,10 +17,9 @@
 * Install [pytorch](https://pytorch.org/get-started/locally/).
 Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the instructions on their repository.
 * Install additional required libraries:
-    opencv-python==4.5.5.64
-    pylibtiff==0.5.1
-    connected-components-3d==3.10.5 
-    nibabel==3.2.2
+  ```
+   pip install -r requirements.txt
+	```
 * Create folders `nnUNet_raw`, `nnUNet_preprocessed`, and `nnUNet_results`.
    
   
@@ -49,7 +48,25 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 
 
 ## Tissue segmentation on full uncropped data
-* An updated method for running inference with our model is using sliding window inferene on preprocessed zarr files. Howto coming soon.
+* Download trained model zip from [here](TODO), and select model 310 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
+* Preprocessing the 16 bit tiffs stacks to zarr:
+```
+  cd ../sliding_window_inference/
+  python tif2zarr_single_or_dualCh.py -i /PATH_CHANEL_AUTOFLUO/ -i2 /PATH_CHANNEL_PI/-o /PATH_INPUT_ZARR.zarr/ -c 2,128,128,128
+
+	```  
+* Run inference:
+```
+  CUDA_VISIBLE_DEVICES=0 python predict_from_dask_tissue.py -i PATH_INPUT_ZARR.zarr -o PATH_OUTPUT_ZARR.zarr
+
+	```  
+(Note: If you want to ensemble the result of 5 models in this setup, you manually need to run all 5 folds.)
+* Export the prediction to tiff:
+```
+  python postprocess_tissue_from_zarr.py -i /PATH_OUTPUT_ZARR.zarr -o /PATH_OUT_TIFF_SLICES/
+
+	``` 
+
 
 ![Example](./assets/mouse_map.png)
 
