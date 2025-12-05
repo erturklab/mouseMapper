@@ -29,7 +29,7 @@ def resume_work(config, zipped_list):
     """
     Check the output dir for the max number of existing nii/vtp files so we can skip (re)loading empty data
     """
-    output_dir = config["output_dir"]
+    output_dir = config.output_dir
     nii = [x for x in os.listdir(cachedir) if ".nii" in x]
     vtp = [x for x in os.listdir(cachedir) if ".vtp" in x]
     
