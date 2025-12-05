@@ -25,6 +25,33 @@ class obj:
 def dict2obj(dict1):
     return json.loads(json.dumps(dict1), object_hook=obj)
 
+def resume_work(config, zipped_list):
+    """
+    Check the output dir for the max number of existing nii/vtp files so we can skip (re)loading empty data
+    """
+    output_dir = config["output_dir"]
+    nii = [x for x in os.listdir(cachedir) if ".nii" in x]
+    vtp = [x for x in os.listdir(cachedir) if ".vtp" in x]
+    
+    seq_ind_nii, seq_ind_vtp = [], []
+
+    for nii_ind in nii:
+        seq_ind = nii_ind.replace("seg_", "").replace(".nii","").split("_")
+        seq_ind_nii.append(seq_ind_nii)
+
+    for vtp_ind in vtp:
+        seq_ind = vtp_ind.replace("seg_", "").replace(".vtp","").split("_")
+        seq_ind_vtp.append(seq_ind_vtp)
+
+    refined_zipped_list = []
+
+    for item in zipped_list:
+        crop_idx, start_, seq_i = item
+        if seq_i not in seq_ind_vtp and seq_i not in seq_ind_nii:
+            refined_zipped_list.append([crop_idx, start_, seq_i])
+
+    return refined_zipped_list
+
 
 if __name__ == "__main__":
 
@@ -57,6 +84,10 @@ if __name__ == "__main__":
 
     span = tuple(np.array(config.patch_size)-2*np.array(config.pad))
     seg_patch_list, start_ind, seq_ind = patchify_voxel(shape_, config.patch_size, config.pad)
+    print(f"Overall # patches: {len(seq_ind)}")
+
+    seg_patch_list, start_ind, seq_ind = unzip(resume_work(config, zip(seg_patch_list, start_ind, seq_ind)))
+    print(f"Refined # patches: {len(seq_ind)}")
 
 ############################################# Extract Graphs #############################################
     os.makedirs(config.output_dir, exist_ok=True)
