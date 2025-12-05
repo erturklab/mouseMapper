@@ -86,7 +86,7 @@ if __name__ == "__main__":
     seg_patch_list, start_ind, seq_ind = patchify_voxel(shape_, config.patch_size, config.pad)
     print(f"Overall # patches: {len(seq_ind)}")
 
-    seg_patch_list, start_ind, seq_ind = unzip(resume_work(config, zip(seg_patch_list, start_ind, seq_ind)))
+    seg_patch_list, start_ind, seq_ind = resume_work(config, zip(seg_patch_list, start_ind, seq_ind))
     print(f"Refined # patches: {len(seq_ind)}")
 
 ############################################# Extract Graphs #############################################
