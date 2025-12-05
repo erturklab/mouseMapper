@@ -60,15 +60,24 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 
   ```  
 (Note: If you want to ensemble the result of 5 models in this setup, you manually need to run all 5 folds.)
-* Export the prediction to tiff:
+* Export the prediction to tiff and zarr(optional, for blob extraction):
 ```
-  python postprocess_segmentation_from_zarr.py -i /PATH_OUTPUT_ZARR.zarr -o /PATH_OUT_TIFF_SLICES/
+  python postprocess_segmentation_from_zarr.py -i /PATH_OUTPUT_ZARR.zarr -o /PATH_OUT_TIFF_SLICES/ -as_zarr=True
 
   ``` 
 
+* Extract the blobs from zarr: Set the parameters in the main_extract_blobs_from_zarr.py file, then run it
+```
+  python main_extract_blobs_from_zarr.py
+
+  ``` 
+
+* Now the blobs will be saved into individual picklefiles which you can inspect and extract statistics regarding size, number, etc
+
+
 
 ## Extracting blob statistics
-* Run blob extraction, to find individual connected components, and to measure their size. Prediction on a 500x500x500 sized patch is expected to take around 13 minutes.
+* Run blob extraction, to find individual connected components, and to measure their size. Prediction on a 500x500x500 sized patch is expected to take around 13 minutes. Howto in the jupyter notebook.
 * Discard elongated structures as False Positives
 * Categorize detected structures into different sizes
 

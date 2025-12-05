@@ -71,17 +71,25 @@ def get_blobs(volume):
     '''
     volume = volume.astype(bool)
     labeled_volume = connected_components(volume, connectivity=18)
-    labels = [ x for x in np.unique(labeled_volume) if x != 0 ]
+    labels = np.unique(labeled_volume)
+    labels = labels[labels != 0]
+
+    # single pass: gather indices per label
+    coords = np.argwhere(labeled_volume > 0)
+    blobs = defaultdict(list)
+    for x, y, z in coords:
+        blobs[labeled_volume[x, y, z]].append((int(x), int(y), int(z)))
+
     bloblist = []
-    for label in labels:
-        allpoints = np.asarray(np.where(labeled_volume == label)).T.tolist() # returns list of pointers; slow for large vols
+    for i, label in enumerate(labels):
+    
         blob = {}
         blob['id'] = len(bloblist)
-        blob['points'] = allpoints
+        blob['points'] = blobs[label]
         blob = characterize_blob(blob)
         bloblist.append(blob)
+        
     return bloblist
-
 def characterize_blob(blob,reduced=False):
     ''' 
     blob = characterize_blob(blob,reduced=False)
