@@ -9,9 +9,9 @@
 ## Installation
 * Install [CUDA](https://developer.nvidia.com/cuda-toolkit) and [cuDNN](https://developer.nvidia.com/cudnn).
 * Install [Anaconda](https://www.anaconda.com/download#downloads) to create and control virtual environments.
-* Install Python 3.9 or higher version by Anaconda.
+* Install Python 3.10 or higher version by Anaconda.
   ```
-    conda create -n env python=3.9
+    conda create -n env python=3.10
 	conda activate env
 	```
 * Install [pytorch](https://pytorch.org/get-started/locally/).
@@ -52,7 +52,7 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 * Preprocessing the 16 bit tiffs stacks to zarr:
 ```
   cd ../sliding_window_inference/
-  python tif2zarr_single_or_dualCh.py -i /PATH_CHANEL_AUTOFLUO/ -i2 /PATH_CHANNEL_PI/-o /PATH_INPUT_ZARR.zarr/ -c 2,128,128,128
+  python tif2zarr_single_or_dualCh.py -i /PATH_CHANEL_AUTOFLUO/ -i2 /PATH_CHANNEL_PI/ -o /PATH_INPUT_ZARR.zarr/ -c 2,128,128,128
 
 	```  
 * Run inference:
@@ -63,7 +63,7 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 (Note: If you want to ensemble the result of 5 models in this setup, you manually need to run all 5 folds.)
 * Export the prediction to tiff:
 ```
-  python postprocess_tissue_from_zarr.py -i /PATH_OUTPUT_ZARR.zarr -o /PATH_OUT_TIFF_SLICES/
+  python postprocess_segmentation_from_zarr.py -i /PATH_OUTPUT_ZARR.zarr -o /PATH_OUT_TIFF_SLICES/
 
 	``` 
 

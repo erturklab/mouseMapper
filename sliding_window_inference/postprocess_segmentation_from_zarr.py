@@ -23,7 +23,7 @@ def generate_tiff_from_tissue_pred_zarr(input_folder, output_folder):
     result = im_2*255/im_1 
 
     for j in tqdm(range(result.shape[2])):
-        output_path = Path(fld_out) / f"tissue_map{j:04d}.tif"
+        output_path = Path(fld_out) / f"segmentation{j:04d}.tif"
         
         if not os.path.isfile(output_path):
             output =result[:,:,j].compute()#.reshape((result.shape[3], result.shape[4]))>0.5).astype(np.uint8)

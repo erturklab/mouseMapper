@@ -177,7 +177,7 @@ def sliding_window_inference_zarr(
     normalization = kwargs.get('normalization', 'minmax')
     print(f"Inside kwargs: {kwargs.keys()}")
 
-    # --- MODIFIED: Call initialize_dask for single Zarr input ---
+   
     image_dask_array, num_input_channels_actual, client = initialize_dask(input_path, roi_size, "zarr")
     print(f"Loaded Dask image with shape: {image_dask_array.shape}, actual input channels: {num_input_channels_actual}")
     print(f"Dask client {client}")

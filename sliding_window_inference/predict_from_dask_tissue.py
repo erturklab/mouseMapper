@@ -1,5 +1,4 @@
 import sys
-#sys.path.insert(0,'/lustre/groups/iterm/Izabela/code/nnunet_dask_inferrer/')
 import pickle
 import os
 import numpy as np
@@ -128,7 +127,7 @@ def main(args):
 
     # Input path to inferer is just the single Zarr file path
     input_for_inferer = input_folder 
-    # --- END: Modified Data Preparation ---
+    
 
     # Create output folder if not already present:
     os.makedirs(os.path.join(output_folder), exist_ok=True)
@@ -192,7 +191,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", '--input_folder', help="Path to the 2-channel Zarr input file (e.g., /path/to/my_image.zarr)",
                         required=True)
     parser.add_argument('-o', "--output_folder", help="path of output inference npy file",
-                        required=False, default = '/ictstr01/groups/iterm/Izabela/HFD/4x_HFD_DS_for_tissue_4x/tissue_out/')
+                        required=True)
     parser.add_argument('-thresh', "--threshold", type=float, default = 0.5, required=False, help="lower boundary for prediction")
     parser.add_argument('-min', "--norm_min", type=float, default = 100, required=False, help="lower boundary for normalization")
     parser.add_argument('-max', "--norm_max", type=float, default = 60000, required=False, help="upper boundary for normalization")

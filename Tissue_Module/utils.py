@@ -177,11 +177,11 @@ def postprocess_predictions(folder_in_pred, folder_pred_postprocessed=None):
         folder_pred_postprocessed = folder_in_pred
     for sample in os.listdir(folder_in_pred):
         pred_vol = readNifti(folder_in_pred+'/'+sample)
-        pred_vol[pred_vol==12]=11
-        pred_vol[pred_vol==13]=11
+        #pred_vol[pred_vol==12]=11
+        #pred_vol[pred_vol==13]=11
 
-        for i in range(13,23,1):
-            pred_vol[pred_vol==i]=i-2
+        #for i in range(13,23,1):
+        #    pred_vol[pred_vol==i]=i-2
         
         writeNifti(folder_pred_postprocessed+'/'+sample,pred_vol )
 
