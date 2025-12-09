@@ -50,7 +50,8 @@ def resume_work(config, zipped_list):
         if seq_i not in seq_ind_vtp and seq_i not in seq_ind_nii:
             refined_zipped_list.append([crop_idx, start_, seq_i])
 
-    return refined_zipped_list
+    c_i, s_, s_i = [x[0] for x in refined_zipped_list], [x[1] for x in refined_zipped_list], [x[2] for x in refined_zipped_list]
+    return c_i, s_, s_i
 
 
 if __name__ == "__main__":
