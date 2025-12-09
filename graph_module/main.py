@@ -51,7 +51,7 @@ def resume_work(config, zipped_list):
 
     for item in zipped_list:
         crop_idx, start_, seq_i = item
-        print(f"Seq_i = {seq_i}")
+        print(f"Seq_i = {seq_i}, Max_nii = {max_nii}, Max_vtp = {max_vtp}")
         if seq_i not in seq_ind_vtp and seq_i not in seq_ind_nii and not seq_i < max_nii and not seq_i < max_vtp:
             refined_zipped_list.append([crop_idx, start_, seq_i])
 
