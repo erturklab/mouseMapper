@@ -37,13 +37,13 @@ def resume_work(config, zipped_list):
 
     for nii_ind in nii:
         seq_ind = nii_ind.replace("seg_", "").replace(".nii","").split("_")
-        seq_ind_nii.append(seq_ind_nii)
+        seq_ind_nii.append([int(n) for n in seq_ind_nii])
     
     max_nii = [max([x[i] for x in seq_ind_nii]) for i in range(3)]
 
     for vtp_ind in vtp:
         seq_ind = vtp_ind.replace("seg_", "").replace(".vtp","").split("_")
-        seq_ind_vtp.append(seq_ind_vtp)
+        seq_ind_vtp.append([int(n) for n in seq_ind_vtp])
 
     refined_zipped_list = []
 
