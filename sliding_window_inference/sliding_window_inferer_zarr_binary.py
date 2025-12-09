@@ -97,47 +97,44 @@ def _get_scan_interval(
     return tuple(scan_interval)
 
 
-def initialize_dask(location : str, chunk_shape : [int], image_type : str = "zarr", cache : bool = True, cache_path = None) -> Tuple[dask.array.core.Array, dask.distributed.Client]:
-    """Initialize a dask array for lazy reading and rechunking it for easier use
+# --- MODIFIED: initialize_dask to return a single Dask array and its channel count ---
+def initialize_dask(location: str, chunk_shape: List[int], image_type: str = "zarr", cache: bool = True, cache_path=None) -> Tuple[dask.array.core.Array, int, dask.distributed.Client]:
+    """Initialize a dask array for lazy reading and rechunking it for easier use.
+    Handles single 2-channel Zarr input.
     Args:
-        - location: path to folder of tiff slices or path to zarr directory
-        - chunk_shape: sliding window size, zyx
-        - image_type: filetype of the data to read, should be zarr, tif, or tiff
+        - location: path to the Zarr directory.
+        - chunk_shape: sliding window size, zyx (spatial dims only).
+        - image_type: filetype of the data to read, should be "zarr". Other types removed as per new requirement.
     Returns:
-        - image: dask image for lazy reading in read_patch
-        - client: dask client
+        - image: dask image for lazy reading.
+        - num_input_channels_actual: The number of channels detected in the Zarr file.
+        - client: dask client.
     """
     client = Client()
-    if image_type == "zarr" or location.endswith(".zarr"):
-        zarr_location = Path(location) # removes extra "/" at the end
-        zarr_location = (zarr_location.parent / (zarr_location.name + ".zarr")) if not zarr_location.name.endswith(".zarr") else zarr_location
-        image = da.from_zarr(location)
-        
+
+    if not location.endswith(".zarr"):
+        raise ValueError("Expected a .zarr input file path for multi-channel Zarr.")
+
+    print(f'Reading multi-channel Zarr from {location}...')
+    image = da.from_zarr(location)
+
+    # Determine number of input channels based on Zarr structure
+    # Assumption: If image.ndim == 4, it's (C, D, H, W). If image.ndim == 3, it's (D, H, W) (single channel).
+    if image.ndim == 4: # Assuming (C, D, H, W)
+        num_input_channels_actual = image.shape[0]
+        # The image will be treated as (C, D, H, W) in read_patch_dask
+        # No rechunking here as it's a single Zarr.
+        spatial_shape_for_padding = image.shape[1:] # D, H, W
+    elif image.ndim == 3: # Assuming (D, H, W) for a single channel
+        num_input_channels_actual = 1
+        image = da.expand_dims(image, axis=0) # Add a channel dimension for consistency (1, D, H, W)
+        spatial_shape_for_padding = image.shape[1:] # D, H, W
     else:
-        if cache:
-            if cache_path and cache_path.end:
-                cache_path = Path(cache_path)
-            else:
-                cache_path = Path(location).parent / (Path(location).name + ".zarr")
-                
-            if cache_path.exists():
-                image = da.from_zarr(str(cache_path))
-            else:
-                images_path = Path(location, f"*.{image_type}")
-                im = imread_dask(str(images_path))
-                im = im.rechunk(chunk_shape, method='p2p')
-                # compressor = zarr.Zstd(level=3)
-                print("Caching as zarr...")
-                with ProgressBar():
-                    da.to_zarr(im, str(cache_path))
-                print("Done!")
-                image = da.from_zarr(str(cache_path))
-        else:   
-            images_path = Path(location, f"*.{image_type}")
-            image = imread_dask(str(images_path))
-  
+        raise ValueError(f"Unsupported Zarr shape: {image.shape}. Expected 3D (D,H,W) or 4D (C,D,H,W).")
+
+    print(f"Initialized Dask image with shape: {image.shape} (C,D,H,W), detected channels: {num_input_channels_actual}")
     
-    return image, client
+    return image, num_input_channels_actual, client
 
 def sliding_window_inference_zarr(
     input_path: str,
@@ -161,7 +158,7 @@ def sliding_window_inference_zarr(
     count_map: zarr.core.Array = None,
     tta: bool = None,
     flip_dim: int = None,
-    normalization_mode= 'minmax', #'minmax' or 'zscore'
+    normalization_mode:str = 'minmax', #'minmax' or 'zscore'
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -214,77 +211,132 @@ def sliding_window_inference_zarr(
         - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
+def sliding_window_inference_zarr(
+    input_path: str, # Modified to accept single string path for Zarr
+    roi_size: Union[Sequence[int], int],
+    sw_batch_size: int,
+    predictor: Callable[..., torch.Tensor],
+    overlap: float = 0.25,
+    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+    sigma_scale: Union[Sequence[float], float] = 0.125,
+    padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+    cval: float = 0.0,
+    sw_device: Union[torch.device, str, None] = None,
+    device: Union[torch.device, str, None] = None,
+    window_data_threshold: int = 1000,
+    normalize_min: int = 0,
+    normalize_max: int = -1,
+    SOFTMAX: bool = False,
+    num_classes: int = 2, # Number of output classes
+    output_image: zarr.array = None,
+    count_map: zarr.array = None,
+    tta: bool = None,
+    flip_dim: int = None,
+    *args: Any,
+    **kwargs: Any,
+) -> torch.Tensor:
+    """
+    Sliding window inference on `inputs` with `predictor`.
+
+    Args:
+        input_path: Input image path (expected to be a 2-channel Zarr file).
+        roi_size: the spatial window size for inferences.
+        sw_batch_size: the batch size to run window slices.
+        predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
+            should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
+            where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
+        overlap: Amount of overlap between scans.
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+        sigma_scale: the standard deviation coefficient of the Gaussian window when `mode` is ``"gaussian"``.
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode for ``inputs``, when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+        cval: fill value for 'constant' padding mode. Default: 0
+        sw_device: device for the window data.
+        device: device for the stitched output prediction.
+        window_data_threshold: Threshold value for skipping the inference, 0 in case masking was used
+        normalize_min: Minimum value for minmax normalization.
+        normalize_max: Maximum value for minmax normalization.
+        SOFTMAX: If True, apply softmax to the model output. This is typically used for multi-class segmentation
+                 when the model outputs logits.
+        num_classes: The number of output classes for multi-class segmentation.
+        args: optional args to be passed to ``predictor``.
+        kwargs: optional keyword args to be passed to ``predictor``.
+
+    Note:
+        - input must be channel-first and have a batch dim, supports N-D sliding window.
+
+    """
+    start_slice = kwargs.get('start_slice', 0)
+    end_slice = kwargs.get('end_slice', -1)
+    normalization = kwargs.get('normalization', 'minmax')
     print(f"Inside kwargs: {kwargs.keys()}")
-    image, client = initialize_dask(input_path, roi_size, os.listdir(input_path)[10].split(".")[-1])
-    print(f"Image shape {image.shape}")
+
+   
+    image_dask_array, num_input_channels_actual, client = initialize_dask(input_path, roi_size, "zarr")
+    print(f"Loaded Dask image with shape: {image_dask_array.shape}, actual input channels: {num_input_channels_actual}")
     print(f"Dask client {client}")
 
-    img_shape = [1, 1]
-    img_shape.extend(image.shape)
+    # img_shape now reflects (N=1, C_in, D, H, W) where C_in is num_input_channels_actual
+    img_shape = [1, num_input_channels_actual]
+    img_shape.extend(image_dask_array.shape[1:]) # Spatial dims from the Dask array (D, H, W)
 
-    #TODO Always 3?
-    num_spatial_dims = len(img_shape) - 2
+    num_spatial_dims = len(img_shape) - 2 # N C D H W -> D H W (3 spatial dims)
 
     if overlap < 0 or overlap >= 1:
         raise AssertionError("overlap must be >= 0 and < 1.")
 
-    # determine image spatial size and batch size
-    # Note: all input images must have the same image size and batch size
-    image_size = img_shape[2:]
-    batch_size = img_shape[0]
+    image_size = img_shape[2:] # Spatial dimensions (D, H, W)
+    batch_size = img_shape[0] # Should typically be 1 for single image inference
+
     roi_size = fall_back_tuple(roi_size, image_size)
-    # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
 
-   
     pad_size = []
-    for k in range(len(img_shape) - 1, 1, -1):
+    for k in range(len(img_shape) - 1, 1, -1): # Iterate spatial dimensions (from W to D)
         diff = max(roi_size[k - 2] - img_shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
- 
-    np_pad = []
-    for i, j in enumerate(img_shape):
-         np_pad.append((pad_size[i], pad_size[i]))
     
+    np_pad = []
+    for i in range(len(img_shape)):
+        if i >= 2: # Spatial dimensions (D, H, W)
+            idx = (i - 2) * 2
+            np_pad.append((pad_size[idx], pad_size[idx+1]))
+        else: # Non-spatial dimensions (N, C)
+            np_pad.append((0, 0))
     np_pad = tuple(np_pad)
 
-    
-    #with (64,64,32) roi_size this works out to (32,32,16)
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
-    # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
-    num_win = len(slices)  # number of windows per image
-    total_slices = num_win * batch_size  # total number of windows
+    num_win = len(slices)
+    total_slices = num_win * batch_size
     print(f"Total slices {total_slices}")
     
-    # Create window-level importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode='constant', sigma_scale=sigma_scale)
-    importance_map = importance_map.to(torch.float16).to(device).numpy()
-
+    # Calculate importance map for a single patch size (D_patch, H_patch, W_patch)
+    # The output of compute_importance_map will be (D_patch, H_patch, W_patch)
+    spatial_patch_size_for_importance = get_valid_patch_size(image_size, roi_size)
+    importance_map = compute_importance_map(spatial_patch_size_for_importance, mode=mode, sigma_scale=sigma_scale)
     
-            
-    #calculate the amount of slices in this batch (for "inferring... x / 142" progress report)
-    slice_l = len(list(range(0, total_slices, sw_batch_size))) 
+    # Correctly expand dimensions to (1, C_out, D_patch, H_patch, W_patch)
+    # 1. Add a batch dimension at index 0 (becomes (1, D_patch, H_patch, W_patch))
+    # 2. Add a channel dimension at index 1 (becomes (1, 1, D_patch, H_patch, W_patch))
+    # 3. Repeat along the channel dimension to match num_classes
+    importance_map = importance_map.unsqueeze(0).unsqueeze(1).repeat(1, num_classes, 1, 1, 1)
     
+    importance_map = importance_map.to(torch.float16).to(device).numpy() # Convert to NumPy for Zarr writing
 
-    #TODO:
-    # Start and end point for inference, this way this can be distributed to multiple nodes
-    #split total slices into number of sw_batches (slice_i) and number of slices within the total_slices (slice_g), 
-    #then run inference on each of those slices 
-    if end_slice < 0 or end_slice>total_slices:
+    slice_l = len(list(range(0, total_slices, sw_batch_size)))
+    
+    if end_slice < 0 or end_slice > total_slices:
         end_slice = total_slices
 
-
-    # Perform predictions
-    print(f"Inferring from {start_slice} to {end_slice} (sw_batch_size {sw_batch_size}); in total {(end_slice - start_slice)/sw_batch_size}...")
+    print(f"Inferring from {start_slice} to {end_slice} (sw_batch_size {sw_batch_size}); in total {(end_slice - start_slice)/sw_batch_size:.2f} batches...")
     for slice_i, slice_g in enumerate(range(start_slice, end_slice, sw_batch_size)):
-        print(f"{slice_g}/{total_slices}",end="\r",flush=True)
+        print(f"{slice_g}/{total_slices}", end="\r", flush=True)
         slice_start_time = datetime.datetime.now()
-        #print("slice_g",slice_g)
-    
-        #create the range of slice numbers within current sw_batch
+        
         slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
 
         unravel_slice = []
@@ -292,113 +344,93 @@ def sliding_window_inference_zarr(
             try:
                 slice_block = [[list([each_slice.start , each_slice.stop]) for each_slice in slices[idx % num_win]]]
                 unravel_slice += slice_block
-            except:
-                print("skipped window: ",idx, " of ",num_win," windows")
+            except IndexError:
+                print(f"skipped window: {idx} of {num_win} windows (IndexError)")
                 pass
-                #this try-except block fixes an off-by-one error in the slice generation that leads to output shifting
-        
-
-        #load the data as subset from the main input dataset (that should be a tensor by now) and concatenate all sw_batch slices into one tensor
-        #load data 
+                
         data_to_load = []
-        # print("started gathering data_to_load...")
         for win_id, win_slice in enumerate(unravel_slice):
-            #TODO Add bounding box here:
             slice_offset = [win_slice[0][0], win_slice[1][0], win_slice[2][0]]
             slice_size = [win_slice[0][1] - slice_offset[0],
                           win_slice[1][1] - slice_offset[1],
                           win_slice[2][1] - slice_offset[2]]
             
-            single_slice_load = read_patch_dask(image, slice_size, slice_offset)
-            
+            #  Call read_patch_dask with the single Dask array ---
+            # read_patch_dask now returns (C_in, D, H, W) for a single patch
+            single_slice_load = read_patch_dask(image_dask_array, slice_size, slice_offset)
             data_to_load.append(single_slice_load)
-        # concatenate all win_slices to a single batch (influenced by sw_batch_size, set according to on the graphics card VRAM)
         
-        # print("started loading data_to_load...")
-        window_data = da.stack(data_to_load).compute().astype(np.int32) # offloading tasks from dask
-        window_data = np.expand_dims(window_data, axis=1) # add channel dimension      
-        window_data = torch.IntTensor(window_data)
+        # Stack all sw_batch_size patches. Resulting shape: (B, C_in, D, H, W)
+        window_data = da.stack(data_to_load).compute().astype(np.float32)
+        window_data = torch.from_numpy(window_data)
         
-        #skip computing if this tile is background (as filtered and set to 0 by the mask_detection step)
         if window_data.max() <= window_data_threshold:
-            seg_prob=torch.zeros_like(window_data)
-            #cast the results back to float16 
-            seg_prob = seg_prob.to(torch.float16).to(device).numpy()
-            #print('Skipped orediction')
-            #print(window_data.min(), window_data.max())
-            seg_prob = seg_prob[:, 0]
-            #print(seg_prob.shape)
-        #if this tile contains data, process it: 
-        else: 
-            #cast as 32-bit float and send to graphics card 
-            window_data = window_data.type(torch.float32)     
+            # For multi-class, initialize with num_classes channels
+            print("Skipping due to low values")
+            seg_prob = torch.zeros((window_data.shape[0], num_classes, *window_data.shape[2:]), dtype=torch.float16, device=device).numpy()
+        else:
+            window_data = window_data.type(torch.float32)
             if normalize_max > 0:
                 window_data = torch.clamp(window_data, min= normalize_min, max = normalize_max)
-            if normalization_mode == 'zscore':
-                mean = torch.mean(window_data)#.mean()
-                std = torch.std(window_data)#.std()
-                #std = window_data.std()
-                window_data = (window_data - mean) / max(std,1e-8)  
-            elif normalization_mode == 'minmax':
-                window_data = (window_data - normalize_min) / (normalize_max-normalize_min)    
+            
+                if normalization == 'minmax':
+                    #rint('Using min-max normalization, ', normalize_min , normalize_max)
+                    window_data = (window_data - normalize_min) / (normalize_max-normalize_min)
+                elif normalization == 'zscore':
+                    #print('Using z-score normalization')
+                    # ---  Calculate mean and std per channel ---
+                    # window_data shape is (B, C, D, H, W)
+                    # We want mean/std over D, H, W for each B and C
+                    mean = torch.mean(window_data, dim=[2, 3, 4], keepdim=True)
+                    std = torch.std(window_data, dim=[2, 3, 4], keepdim=True)
+                    
+                    # Ensure std is not zero to prevent division by zero, add epsilon
+                    window_data = (window_data - mean) / (std + 1e-8) # Added 1e-8 to std directly
+
+                    
             window_data = window_data.cuda()
             window_data.to(sw_device)
-            #print(window_data.min(), window_data.max())
-            #add noise if running with test-time augmentation
+
             if tta:
-                #window_data = RandGaussianNoise(prob=1.0, std=0.001)(window_data)
-                #window_data[:,0,:,:,:] = window_data[:,0,:,:,:] + (0.00001**0.5)*torch.randn(size=window_data[:,0,:,:,:].shape,out=window_data[:,0,:,:,:],dtype=torch.float32,device=sw_device)
                 window_data = RandGaussianNoise(prob=1.0, mean=0.0, std=0.001)(window_data)
 
-            # if the data needs to be flipped, do this here (flip_dim: 2 = z, 3 = y, 4 = x) 
+            # Note: flip_dim now applies to (N, C, D, H, W) input.
+            # D, H, W correspond to dims 2, 3, 4 respectively.
             if flip_dim is not None:
                 window_data = torch.flip(window_data,dims=[flip_dim])
 
-            #run the actual prediction 
-            #seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
-            #TODO Sort out this kwargs mess - state all arguments unless they need to be passed down!!!
-            seg_prob = predictor(window_data)#, *args, **kwargs)  # batched patch segmentation
+            seg_prob = predictor(window_data)
             
-            # flip data back if previously flipped 
             if flip_dim is not None:
                 seg_prob = torch.flip(seg_prob,dims=[flip_dim])
             
             if SOFTMAX:
+                #print('Using Softmax')
                 seg_prob = F.softmax(seg_prob, dim=1)
-            #cast the results back to float16 
-            seg_prob = seg_prob.to(torch.float16).to(device).numpy()
-            #print('Using model to predict')
-            #seg_prob = seg_prob[:, 1]
-            #print(seg_prob.shape)
-        #print('Inference range:', (seg_prob.min(), seg_prob.max()))
-        slice_delta = datetime.datetime.now() - slice_start_time 
-        print('slice_delta:', slice_delta) 
-        print(f"Inferred: {slice_g}/{total_slices} [{(slice_g / total_slices)*100:.2f} %]",end="\r",flush=True)
 
-        # store the result in the proper location of the full output. Apply weights from importance map. (skip this if it is all background) 
+            seg_prob = seg_prob.to(torch.float16).to(device).numpy()
+
+        slice_delta = datetime.datetime.now() - slice_start_time
+        print(f"Inferred: {slice_g}/{total_slices} [{(slice_g / total_slices)*100:.2f} %] slice_delta: {slice_delta}", end="\r", flush=False)
 
         for idx, original_idx in zip(slice_range, unravel_slice):
-            output_image[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
-            count_map[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map
-            '''
+
+            output_image[0,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map[0] * seg_prob[idx - slice_g]
+            count_map[0,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map[0]
+
             try:
-                _ = output_image[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]]
-                output_image[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
+                lhs_slice_shape = output_image[0, :, 
+                                               original_idx[0][0]:original_idx[0][1], 
+                                               original_idx[1][0]:original_idx[1][1], 
+                                               original_idx[2][0]:original_idx[2][1]
+                                              ].shape
+
             except Exception as e:
-                print(f"[WARNING] Corrupted chunk in output_image at {original_idx}. Overwriting it.")
-                output_image[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] = importance_map * seg_prob[idx - slice_g]
-            try:
-                _ = count_map[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]]
-                count_map[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map 
-            except Exception as e:
-                print(f"[WARNING] Corrupted chunk in count_map at {original_idx}. Overwriting it.")
-                count_map[0,0,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] = importance_map
-            '''  
+                print(f"DEBUG: Failed to get LHS slice shape: {e}")
         window_data = 0
         seg_prob = 0
 
-    print(f"{datetime.datetime.now()} : Inference run finished")
-
+    print(f"\n{datetime.datetime.now()} : Inference run finished")
     
 class SlidingWindowInferer(Inferer):
     """
@@ -497,22 +529,24 @@ class SlidingWindowInferer(Inferer):
         print(f"Calling SWI with {kwargs.keys()}")
         print(f"Output image {type(kwargs['output_image'])} {kwargs['output_image'].shape}")
 
+        norm_mode = kwargs.pop("normalization_mode", self.normalization_mode)
+       
         return sliding_window_inference_zarr(
-            input_path,
-            self.roi_size,
-            self.sw_batch_size,
-            network,
-            self.overlap,
-            self.mode,
-            self.sigma_scale,
-            self.padding_mode,
-            self.cval,
-            self.sw_device,
-            self.device,
-            self.threshold_inference,
-            self.normalize_min,
-            self.normalize_max,
-            self.normalization_mode,
+            input_path=input_path,
+            roi_size=self.roi_size,
+            sw_batch_size=self.sw_batch_size,
+            predictor=network,
+            overlap=self.overlap,
+            mode=self.mode,
+            sigma_scale=self.sigma_scale,
+            padding_mode=self.padding_mode,
+            cval=self.cval,
+            sw_device=self.sw_device,
+            device=self.device,
+            window_data_threshold=self.threshold_inference,
+            normalize_min=self.normalize_min,
+            normalize_max=self.normalize_max,
+            normalization_mode=self.normalization_mode,  
             *args,
             **kwargs,
         )
