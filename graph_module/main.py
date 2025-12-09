@@ -82,7 +82,7 @@ if __name__ == "__main__":
     config["cachedir"] = os.path.join(config["workdir"], "voreen_cachedir/")
     config = dict2obj(config)
 
-    print(f"Opening in_file {config.in_file} ({os.listdir(config.in_file)})")
+    print(f"Opening in_file {config.in_file} ({len(os.listdir(config.in_file))} items)")
     # Open the Zarr file
     zarr_data = zarr.open(config.in_file, mode='r', synchronizer=None)
     shape_ = zarr_data.shape
