@@ -38,6 +38,8 @@ def resume_work(config, zipped_list):
     for nii_ind in nii:
         seq_ind = nii_ind.replace("seg_", "").replace(".nii","").split("_")
         seq_ind_nii.append(seq_ind_nii)
+    
+    max_nii = [max([x[i] for x in seq_ind_nii]) for i in range(3)]
 
     for vtp_ind in vtp:
         seq_ind = vtp_ind.replace("seg_", "").replace(".vtp","").split("_")
@@ -45,9 +47,11 @@ def resume_work(config, zipped_list):
 
     refined_zipped_list = []
 
+    max_vtp = [max([x[i] for x in seq_ind_vtp]) for i in range(3)]
+
     for item in zipped_list:
         crop_idx, start_, seq_i = item
-        if seq_i not in seq_ind_vtp and seq_i not in seq_ind_nii:
+        if seq_i not in seq_ind_vtp and seq_i not in seq_ind_nii and not seq_i < max_nii and not seq_i < max_vtp:
             refined_zipped_list.append([crop_idx, start_, seq_i])
 
     c_i, s_, s_i = [x[0] for x in refined_zipped_list], [x[1] for x in refined_zipped_list], [x[2] for x in refined_zipped_list]
