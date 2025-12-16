@@ -54,9 +54,9 @@ def main():
     parser.add_argument("-p", '--percentile', type = float, default=0.1, help="Pencentile for normalization")
 
     args = parser.parse_args()
-
-    raw_zarr_percentile(args.input_zarr_path, args.percentile)
-
+    z = da.from_zarr(args.input_zarr_path)
+    results = raw_zarr_percentile(z, args.percentile)
+    print(results)
 
 if __name__ == '__main__':  
     main()
