@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the software and the associated preprint."
+title: "MouseMapper: Whole-body deep-learning image analysis for systemic disease phenotyping"
+abstract: >-
+  MouseMapper is a suite of deep-learning image analysis modules
+  (Nerve, Immune, Tissue, and Graph modules) integrated with tissue
+  clearing and light-sheet microscopy, enabling quantitative analysis
+  of cellular and structural changes across the entire mouse body.
+type: software
+authors:
+  - family-names: "Ertürk"
+    given-names: "Ali"
+    orcid: "https://orcid.org/0000-0003-4310-1738"
+repository-code: "https://github.com/erturklab/mouseMapper"
+url: "https://github.com/erturklab/mouseMapper"
+license-url: "https://github.com/erturklab/mouseMapper/blob/main/LICENSE"
+keywords:
+  - "deep learning"
+  - "light-sheet microscopy"
+  - "tissue clearing"
+  - "whole-body imaging"
+  - "obesity"
+  - "nerve segmentation"
+  - "immune cell quantification"
+  - "nnU-Net"
+  - "vessel graph extraction"
+preferred-citation:
+  type: article
+  title: "Deep Learning and 3D Imaging Reveal Whole-Body Alterations in Obesity"
+  authors:
+    - family-names: "Ertürk"
+      given-names: "Ali"
+  doi: "10.1101/2024.08.18.608300"
+  url: "https://doi.org/10.1101/2024.08.18.608300"
+  journal: "bioRxiv"
+  year: 2024
