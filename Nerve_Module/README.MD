@@ -28,7 +28,7 @@
 	```
   
 ## Nerve segmentation
-* Download trained models from [here](../models/nerve_segmentation)
+* Download trained models from [here](../models/NerveModel.zip)
 * Download the [example data](../Nerve_Module/example_data) for testing and uncompress them. The example data is part of one trigeminal nerve. It includes two parts: one containing raw tiff slices named `raw`, and a folder of annotation tiff slices named `gt`.
 * Convert raw tiff slices into Zarr file, then compute the `INTENSITY_LOW` and `INTENSITY_HIGH` for percentile normalization during the next inference step:
   ```
