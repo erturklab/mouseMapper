@@ -27,7 +27,7 @@ Install [nnUNETv2](https://github.com/MIC-DKFZ/nnUNet/tree/master) following the
 ## Inflammation marker segmentation
 * The [Inflammation_module](./Inflammation_module.ipynb) notebook will provide a walkthrough about how to use our pipeline.
 
-* Download trained model zip from [here](TODO), and select model 17268 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
+* Download trained model zip from [here](../models/CD68_Model.zip), and select model 17268 . For setting it up, follow the instructions form [here] (https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/how_to_use_nnunet.md#how-to-deploy-and-run-inference-with-your-pretrained-models)
 
 ## Inflammation marker segmentation from cropped data
 * Crop your tissue data with your solution of choice. The smaller the crops, the faster each patch will be segmented, and the less resources (RAM and CPU) you can get away with. This process can take up to 36 hours for large specimens.
